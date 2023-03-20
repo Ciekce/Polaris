@@ -270,6 +270,16 @@ namespace polaris::search::pvs
 
 				m_flag.store(IdleFlag, std::memory_order::seq_cst);
 			}
+
+			// age history entries
+			for (i32 src = 0; src < 64; ++src)
+			{
+				for (i32 dst = 0; dst < 64; ++dst)
+				{
+					data.blackHistory[src][dst] /= 2;
+					data.whiteHistory[src][dst] /= 2;
+				}
+			}
 		}
 	}
 
@@ -369,12 +379,15 @@ namespace polaris::search::pvs
 		if (inCheck)
 			++depth;
 
+		auto &history = us == Color::Black ? data.blackHistory : data.whiteHistory;
+		data.quietsTried.clear();
+
 		auto best = NullMove;
 		auto bestScore = -ScoreMax;
 
 		auto entryType = EntryType::Alpha;
 
-		MoveGenerator generator{pos, stack.movegen, hashMove};
+		MoveGenerator generator{pos, stack.movegen, hashMove, &history};
 		u32 legalMoves = 0;
 
 		while (const auto move = generator.next())
@@ -424,6 +437,8 @@ namespace polaris::search::pvs
 				}
 			}
 
+			const bool noisy = pos.isNoisy(move);
+
 			if (score > bestScore)
 			{
 				best = move;
@@ -433,11 +448,27 @@ namespace polaris::search::pvs
 				{
 					if (score >= beta)
 					{
-						if (generator.stage() >= MovegenStage::Quiet
-							&& move != stack.movegen.killer1)
+						if (generator.stage() >= MovegenStage::Quiet)
 						{
-							stack.movegen.killer2 = stack.movegen.killer1;
-							stack.movegen.killer1 = move;
+							if (move != stack.movegen.killer1)
+							{
+								stack.movegen.killer2 = stack.movegen.killer1;
+								stack.movegen.killer1 = move;
+							}
+
+							if (!noisy)
+							{
+								const auto adjustment = depth * depth;
+
+								history[static_cast<i32>(move.src())]
+									[static_cast<i32>(move.dst())] += adjustment;
+
+								for (const auto prevQuiet : data.quietsTried)
+								{
+									history[static_cast<i32>(prevQuiet.src())]
+										[static_cast<i32>(prevQuiet.dst())] -= adjustment;
+								}
+							}
 						}
 
 						entryType = EntryType::Beta;
@@ -448,6 +479,11 @@ namespace polaris::search::pvs
 					entryType = EntryType::Exact;
 				}
 			}
+
+			// don't put this above the cutoff check because it will
+			// immediately have its bonus reduced if it failed high
+			if (!noisy)
+				data.quietsTried.push(move);
 
 #ifndef NDEBUG
 			}
