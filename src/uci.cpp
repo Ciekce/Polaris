@@ -55,6 +55,9 @@ namespace polaris
 		constexpr auto Version = PS_STRINGIFY(PS_VERSION);
 		constexpr auto Author = "Ciekce";
 
+		constexpr u32 DefaultThreadCount = 1;
+		constexpr auto ThreadCountRange = util::Range<u32>{1, 1};
+
 		GlobalOptions s_opts{};
 
 		class UciHandler
@@ -159,6 +162,8 @@ namespace polaris
 			std::cout << "option name Hash type spin default " << DefaultHashSize
 				<< " min " << HashSizeRange.min() << " max " << HashSizeRange.max() << '\n';
 			std::cout << "option name Clear Hash type button\n";
+			std::cout << "option name Threads type spin default " << DefaultThreadCount
+				<< " min " << ThreadCountRange.min() << " max " << ThreadCountRange.max() << '\n';
 			//TODO
 		//	std::cout << "option name Contempt type spin default 0 min -10000 max 10000\n";
 			std::cout << "option name UCI_Chess960 type check default "
@@ -525,11 +530,11 @@ namespace polaris
 
 			std::ostringstream key{};
 			key << std::hex << std::setw(16) << std::setfill('0') << m_pos.key();
-			std::cout << "Key: " << key.view() << std::endl;
+			std::cout << "Key: " << key.str() << std::endl;
 
 			std::ostringstream pawnKey{};
 			pawnKey << std::hex << std::setw(16) << std::setfill('0') << m_pos.pawnKey();
-			std::cout << "Pawn key: " << pawnKey.view() << std::endl;
+			std::cout << "Pawn key: " << pawnKey.str() << std::endl;
 
 			std::cout << "Checkers:";
 
