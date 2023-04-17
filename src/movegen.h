@@ -130,15 +130,12 @@ namespace polaris
 				if (m_idx == m_moves.size())
 					return NullMove;
 
-				const auto move = m_moves[m_idx++];
+				const auto move = findNext();
 
-				if (!move.move)
-					return NullMove;
-
-				if (move.move != m_hashMove
-					&& move.move != m_killer1
-					&& move.move != m_killer2)
-					return move.move;
+				if (move != m_hashMove
+					&& move != m_killer1
+					&& move != m_killer2)
+					return move;
 			}
 		}
 
@@ -146,11 +143,34 @@ namespace polaris
 
 	private:
 		static constexpr auto PromoScores = std::array {
-			 1, // knight
+			1, // knight
 			-2, // bishop
 			-1, // rook
-			 2  // queen
+			2  // queen
 		};
+
+		inline Move findNext()
+		{
+			if (m_stage == MovegenStage::GoodNoisy)
+				return m_moves[m_idx++].move;
+
+			auto best = m_idx;
+			auto bestScore = m_moves[m_idx].score;
+
+			for (auto i = m_idx + 1; i < m_moves.size(); ++i)
+			{
+				if (m_moves[i].score > bestScore)
+				{
+					best = i;
+					bestScore = m_moves[i].score;
+				}
+			}
+
+			if (best != m_idx)
+				std::swap(m_moves[m_idx], m_moves[best]);
+
+			return m_moves[m_idx++].move;
+		}
 
 		inline void scoreNoisy()
 		{
@@ -183,7 +203,7 @@ namespace polaris
 
 				if (m_history)
 					move.score = (*m_history)[static_cast<i32>(m_pos.pieceAt(move.move.src()))]
-						[static_cast<i32>(moveActualDst(move.move))];
+					[static_cast<i32>(moveActualDst(move.move))];
 
 				// knight promos first, rook then bishop promos last
 				//TODO capture promos first
@@ -197,7 +217,7 @@ namespace polaris
 			generateNoisy(m_moves, m_pos);
 			scoreNoisy();
 
-			std::sort(m_moves.begin() + m_idx, m_moves.end(), [](const auto &a, const auto &b)
+			std::stable_sort(m_moves.begin() + m_idx, m_moves.end(), [](const auto &a, const auto &b)
 			{
 				return a.score > b.score;
 			});
@@ -214,12 +234,6 @@ namespace polaris
 		{
 			generateQuiet(m_moves, m_pos);
 			scoreQuiet();
-
-			// also sorts bad noisy moves to the end
-			std::sort(m_moves.begin() + m_idx, m_moves.end(), [](const auto &a, const auto &b)
-			{
-				return a.score > b.score;
-			});
 
 			m_goodNoisyEnd = 9999;
 		}
