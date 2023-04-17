@@ -22,6 +22,8 @@
 
 #include <cmath>
 #include <utility>
+#include <limits>
+#include <algorithm>
 
 #include "util/bitfield.h"
 #include "util/cemath.h"
