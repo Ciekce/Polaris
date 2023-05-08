@@ -548,6 +548,14 @@ namespace polaris::search::pvs
 				const auto score = search(data, singularityDepth, newPly, -singularityBeta - 1, -singularityBeta);
 
 				data.stack[newPly].excluded = NullMove;
+
+				// multicut
+				if (score >= singularityBeta && singularityBeta >= beta)
+				{
+					guard.disable(); // already unmade the move
+					return singularityBeta;
+				}
+
 				pos.applyMoveUnchecked(move);
 
 				if (score < singularityBeta)

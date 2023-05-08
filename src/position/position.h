@@ -78,10 +78,16 @@ namespace polaris
 	{
 	public:
 		explicit HistoryGuard(Position &pos) : m_pos{pos} {}
-		~HistoryGuard();
+		inline ~HistoryGuard();
+
+		inline void disable()
+		{
+			m_disabled = true;
+		}
 
 	private:
 		Position &m_pos;
+		bool m_disabled{false};
 	};
 
 	class Position
@@ -444,6 +450,12 @@ namespace polaris
 
 		std::vector<BoardState> m_states{};
 	};
+
+	HistoryGuard::~HistoryGuard()
+	{
+		if (!m_disabled)
+			m_pos.popMove();
+	}
 
 	[[nodiscard]] Square squareFromString(const std::string &str);
 }

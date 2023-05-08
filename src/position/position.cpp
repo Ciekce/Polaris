@@ -48,11 +48,6 @@ namespace polaris
 		constexpr auto PhaseIncBase = std::array{0, 1, 1, 2, 4, 0, 0};
 	}
 
-	HistoryGuard::~HistoryGuard()
-	{
-		m_pos.popMove();
-	}
-
 	template void Position::applyMoveUnchecked<false, false>(Move move, TTable *prefetchTt);
 	template void Position::applyMoveUnchecked<true, false>(Move move, TTable *prefetchTt);
 	template void Position::applyMoveUnchecked<false, true>(Move move, TTable *prefetchTt);
