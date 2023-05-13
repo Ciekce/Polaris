@@ -71,8 +71,6 @@ namespace polaris::search::pvs
 		constexpr Score QuietSeeThreshold = -50;
 		constexpr Score NoisySeeThreshold = -90;
 
-		constexpr i32 MinSingularityDepth = 8;
-
 		constexpr i32 MaxFpDepth = 8;
 
 		constexpr Score FpMargin = 250;
@@ -426,19 +424,16 @@ namespace polaris::search::pvs
 		const bool pv = root || beta - alpha > 1;
 
 		auto &stack = data.stack[ply];
+		const auto &prevStack = data.stack[ply - 1];
 
-		const auto realPly = stack.excluded ? ply - 1 : ply;
-
-		const auto &prevStack = data.stack[realPly - 1];
-
-		if (realPly > data.search.seldepth)
-			data.search.seldepth = realPly;
+		if (ply > data.search.seldepth)
+			data.search.seldepth = ply;
 
 		// mate distance pruning
 		if (!pv)
 		{
-			const auto mdAlpha = std::max(alpha, -ScoreMate + realPly);
-			const auto mdBeta = std::min(beta, ScoreMate - realPly - 1);
+			const auto mdAlpha = std::max(alpha, -ScoreMate + ply);
+			const auto mdBeta = std::min(beta, ScoreMate - ply - 1);
 
 			if (mdAlpha >= mdBeta)
 				return mdAlpha;
@@ -447,21 +442,17 @@ namespace polaris::search::pvs
 		ProbedTTableEntry entry{};
 		auto hashMove = NullMove;
 
-		if (!stack.excluded)
-		{
-			if (m_table.probe(entry, pos.key(), depth, alpha, beta) && !pv)
-				return entry.score;
-			else if (entry.move && pos.isPseudolegal(entry.move))
-				hashMove = entry.move;
+		if (m_table.probe(entry, pos.key(), depth, alpha, beta) && !pv)
+			return entry.score;
+		else if (entry.move && pos.isPseudolegal(entry.move))
+			hashMove = entry.move;
 
-			// internal iterative reduction
-			if (!hashMove
-				&& !inCheck
-				&& !stack.excluded
-				&& (pv || cutnode)
-				&& depth >= MinIirDepth)
-				--depth;
-		}
+		// internal iterative reduction
+		if (!hashMove
+			&& !inCheck
+			&& (pv || cutnode)
+			&& depth >= MinIirDepth)
+			--depth;
 
 		const auto newBaseDepth = depth > 0 ? depth - 1 : 0;
 		const auto newPly = ply + 1;
@@ -470,16 +461,14 @@ namespace polaris::search::pvs
 
 		if (!root && !pos.lastMove())
 			stack.eval = eval::flipTempo(-prevStack.eval);
-		else if (stack.excluded)
-			stack.eval = data.stack[ply - 1].eval; // not prevStack
 		else stack.eval = inCheck ? 0
 			: (entry.score != 0 ? entry.score : eval::staticEval(pos, &data.pawnCache));
 
 		stack.currMove = {};
 
-		const bool improving = !inCheck && realPly > 1 && stack.eval > data.stack[realPly - 2].eval;
+		const bool improving = !inCheck && ply > 1 && stack.eval > data.stack[ply - 2].eval;
 
-		if (!pv && !inCheck && !stack.excluded)
+		if (!pv && !inCheck)
 		{
 			// reverse futility pruning
 			if (depth <= tunable::maxRfpDepth(g_opts.tunable)
@@ -524,9 +513,6 @@ namespace polaris::search::pvs
 
 		while (const auto move = generator.next())
 		{
-			if (move == stack.excluded)
-				continue;
-
 			const bool quietOrLosing = generator.stage() >= MovegenStage::Quiet;
 
 			const auto baseLmr = LmrTable[depth][legalMoves + 1];
@@ -557,31 +543,6 @@ namespace polaris::search::pvs
 
 			stack.currMove = {movingPiece, moveActualDst(move)};
 
-			i32 extension{};
-
-			// singular extension
-			if (depth >= MinSingularityDepth
-				&& move == hashMove
-				&& !stack.excluded
-				&& entry.depth >= depth - 3
-				&& entry.type != EntryType::Alpha)
-			{
-				const auto singularityBeta = std::max(-ScoreMate, entry.score - 2 * depth);
-				const auto singularityDepth = (depth - 1) / 2;
-
-				data.stack[newPly].excluded = move;
-				pos.popMove();
-
-				const auto score = search(data, singularityDepth, newPly,
-					-singularityBeta - 1, -singularityBeta, cutnode);
-
-				data.stack[newPly].excluded = NullMove;
-				pos.applyMoveUnchecked(move);
-
-				if (score < singularityBeta)
-					extension = 1;
-			}
-
 			Score score{};
 
 			if (pos.isDrawn())
@@ -604,7 +565,7 @@ namespace polaris::search::pvs
 					reduction = std::clamp(lmr, 0, newBaseDepth - 1);
 				}
 
-				const auto newDepth = newBaseDepth + extension;
+				const auto newDepth = newBaseDepth;
 
 				if (pv && legalMoves == 1)
 					score = -search(data, newDepth - reduction, newPly, -beta, -alpha, false);
@@ -677,16 +638,11 @@ namespace polaris::search::pvs
 		}
 
 		if (legalMoves == 0)
-		{
-			if (stack.excluded)
-				return alpha;
-			return inCheck ? (-ScoreMate + realPly) : 0;
-		}
+			inCheck ? (-ScoreMate + ply) : 0;
 
 		// increase depth for tt if in check
 		// honestly no idea why this gains
-		if (!stack.excluded)
-			m_table.put(pos.key(), bestScore, best, inCheck ? depth + 1 : depth, entryType);
+		m_table.put(pos.key(), bestScore, best, inCheck ? depth + 1 : depth, entryType);
 
 		if (root && (!m_stop || !data.search.move))
 			data.search.move = best;
