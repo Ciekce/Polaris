@@ -108,7 +108,16 @@ namespace polaris
 
 		const auto entryKey = static_cast<u16>(key >> 48);
 
-		if (entryKey == entry.key && entry.depth > depth)
+		// always replace empty entries
+		const bool replace = entry.key == 0
+			// otherwise, always replace with PV entries
+			|| type == EntryType::Exact
+			// otherwise, replace if the depth is greater
+			|| entry.depth < depth
+			// otherwise, replace if the entry is from the same position with a significantly lower depth
+			|| (entry.key == entryKey && entry.depth < depth + 3);
+
+		if (!replace)
 			return;
 
 #ifndef NDEBUG
