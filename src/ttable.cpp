@@ -121,6 +121,7 @@ namespace polaris
 		entry.move = move;
 		entry.depth = depth;
 		entry.type = type;
+		entry.age = m_currentAge;
 
 		exchangeEntry(key, entry);
 
