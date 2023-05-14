@@ -46,7 +46,11 @@ namespace polaris
 		i16 score;
 		Move move;
 		u8 depth;
-		EntryType type;
+		struct
+		{
+			EntryType type : 2;
+			u8 age : 6;
+		};
 	};
 
 #ifdef NDEBUG
@@ -86,6 +90,11 @@ namespace polaris
 			__builtin_prefetch(&m_table[key & m_mask]);
 		}
 
+		inline void age()
+		{
+			m_currentAge = (m_currentAge + 1) % 64;
+		}
+
 	private:
 		[[nodiscard]] inline TTableEntry loadEntry(u64 key) const
 		{
@@ -113,5 +122,7 @@ namespace polaris
 		std::vector<i64> m_table{};
 
 		std::atomic_size_t m_entries{};
+
+		u8 m_currentAge{};
 	};
 }

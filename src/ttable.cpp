@@ -108,7 +108,7 @@ namespace polaris
 
 		const auto entryKey = static_cast<u16>(key >> 48);
 
-		if (entryKey == entry.key && entry.depth > depth)
+		if (entry.age == m_currentAge && entryKey == entry.key && entry.depth > depth)
 			return;
 
 #ifndef NDEBUG
@@ -131,6 +131,7 @@ namespace polaris
 	void TTable::clear()
 	{
 		m_entries = 0;
+		m_currentAge = 0;
 
 		if (!m_table.empty())
 			std::memset(m_table.data(), 0, m_table.size() * sizeof(TTableEntry));
