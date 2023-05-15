@@ -113,9 +113,8 @@ namespace polaris
 			// otherwise, always replace with PV entries
 			|| type == EntryType::Exact
 			// otherwise, replace if the depth is greater
-			|| entry.depth < depth
-			// otherwise, replace if the entry is from the same position with a significantly lower depth
-			|| (entry.key == entryKey && entry.depth < depth + 3);
+			// only replace entries from the same position if the depth is significantly greater
+			|| entry.depth < depth + (entry.key == entryKey ? 3 : 0);
 
 		if (!replace)
 			return;
