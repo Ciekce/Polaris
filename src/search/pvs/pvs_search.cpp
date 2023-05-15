@@ -36,8 +36,8 @@ namespace polaris::search::pvs
 
 		constexpr i32 MinAspDepth = 6;
 
-		constexpr Score InitialWindow = 10;
-		constexpr Score MaxWindow = 500;
+		constexpr Score InitialWindow = eval::cpToInternalUnits(10);
+		constexpr Score MaxWindow = eval::cpToInternalUnits(500);
 
 		constexpr i32 MinNullmoveDepth = 3;
 		constexpr i32 MinLmrDepth = 3;
@@ -75,8 +75,8 @@ namespace polaris::search::pvs
 
 		constexpr i32 MaxFpDepth = 8;
 
-		constexpr Score FpMargin = 250;
-		constexpr Score FpScale = 60;
+		constexpr Score FpMargin = eval::cpToInternalUnits(250);
+		constexpr Score FpScale = eval::cpToInternalUnits(60);
 
 		constexpr i32 MinIirDepth = 4;
 
@@ -784,7 +784,7 @@ namespace polaris::search::pvs
 				std::cout << "mate " << ((ScoreMate - score + 1) / 2);
 			else std::cout << "mate " << (-(ScoreMate + score) / 2);
 		}
-		else std::cout << "cp " << score;
+		else std::cout << "cp " << eval::internalUnitsToCp(score);
 
 		if (score == alpha)
 			std::cout << " upperbound";

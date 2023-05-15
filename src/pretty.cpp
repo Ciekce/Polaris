@@ -84,6 +84,8 @@ namespace polaris
 			return;
 		}
 
+		score = eval::internalUnitsToCp(score);
+
 		out << (score < 0 ? '-' : '+');
 
 		if (score < 0)
@@ -102,9 +104,9 @@ namespace polaris
 	void printScore(std::ostream &out, TaperedScore score)
 	{
 		out << '[';
-		printScore(out, score.midgame);
+		printScore(out, eval::internalUnitsToCp(score.midgame));
 		out << ", ";
-		printScore(out, score.endgame);
+		printScore(out, eval::internalUnitsToCp(score.endgame));
 		out << ']';
 	}
 }

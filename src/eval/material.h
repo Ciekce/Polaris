@@ -31,11 +31,11 @@ namespace polaris::eval
 	namespace values
 	{
 		// keep below 2000
-		constexpr auto Pawn = S(84, 100);
-		constexpr auto Knight = S(361, 312);
-		constexpr auto Bishop = S(379, 342);
-		constexpr auto Rook = S(483, 610);
-		constexpr auto Queen = S(1045, 1175);
+		constexpr auto Pawn = S(141, 168);
+		constexpr auto Knight = S(606, 525);
+		constexpr auto Bishop = S(637, 574);
+		constexpr auto Rook = S(811, 1024);
+		constexpr auto Queen = S(1756, 1973);
 
 		constexpr auto King = S(0, 0);
 
@@ -85,5 +85,15 @@ namespace polaris::eval
 	constexpr auto pieceValue(Piece piece)
 	{
 		return values::Values[static_cast<i32>(piece)];
+	}
+
+	constexpr Score cpToInternalUnits(Score cp)
+	{
+		return (cp * eval::values::Pawn.endgame) / 100;
+	}
+
+	constexpr Score internalUnitsToCp(Score iu)
+	{
+		return (iu * 100) / eval::values::Pawn.endgame;
 	}
 }

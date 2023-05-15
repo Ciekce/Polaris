@@ -20,6 +20,8 @@
 
 #include "types.h"
 
+#include "eval/material.h"
+
 #define PS_TUNE_SEARCH 0
 
 namespace polaris::tunable
@@ -27,7 +29,7 @@ namespace polaris::tunable
 	namespace defaults
 	{
 		constexpr i32 MaxRfpDepth = 8;
-		constexpr i32 RfpMargin = 75;
+		constexpr i32 RfpMargin = eval::cpToInternalUnits(75);
 	}
 
 	struct TunableData
