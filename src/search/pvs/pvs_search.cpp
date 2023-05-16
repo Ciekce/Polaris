@@ -496,7 +496,7 @@ namespace polaris::search::pvs
 				&& !boards.nonPk(us).empty())
 			{
 				const auto R = std::min(depth,
-					3 + depth / 3 + std::min((eval::internalUnitsToCp(stack.eval) - beta) / 200, 3));
+					3 + depth / 3 + std::min((stack.eval - beta) / eval::cpToInternalUnits(200), 3));
 
 				const auto guard = pos.applyMove(NullMove, &m_table);
 				const auto score = -search(data, depth - R, newPly, -beta, -beta + 1, !cutnode);
