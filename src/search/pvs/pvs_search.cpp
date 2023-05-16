@@ -495,7 +495,8 @@ namespace polaris::search::pvs
 				&& pos.lastMove()
 				&& !boards.nonPk(us).empty())
 			{
-				const auto R = std::min(depth, 3 + depth / 3 + std::min((stack.eval - beta) / 200, 3));
+				const auto R = std::min(depth,
+					3 + depth / 3 + std::min((eval::internalUnitsToCp(stack.eval) - beta) / 200, 3));
 
 				const auto guard = pos.applyMove(NullMove, &m_table);
 				const auto score = -search(data, depth - R, newPly, -beta, -beta + 1, !cutnode);
@@ -566,7 +567,7 @@ namespace polaris::search::pvs
 				&& entry.depth >= depth - 3
 				&& entry.type != EntryType::Alpha)
 			{
-				const auto singularityBeta = std::max(-ScoreMate, entry.score - 2 * depth);
+				const auto singularityBeta = std::max(-ScoreMate, entry.score - eval::cpToInternalUnits(2 * depth));
 				const auto singularityDepth = (depth - 1) / 2;
 
 				data.stack[newPly].excluded = move;
