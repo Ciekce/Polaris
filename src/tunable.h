@@ -29,7 +29,7 @@ namespace polaris::tunable
 	namespace defaults
 	{
 		constexpr i32 MaxRfpDepth = 8;
-		constexpr i32 RfpMargin = eval::cpToInternalUnits(75);
+		constexpr i32 RfpMargin = 126;
 	}
 
 	struct TunableData

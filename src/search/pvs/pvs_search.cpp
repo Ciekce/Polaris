@@ -36,8 +36,8 @@ namespace polaris::search::pvs
 
 		constexpr i32 MinAspDepth = 6;
 
-		constexpr Score InitialWindow = eval::cpToInternalUnits(10);
-		constexpr Score MaxWindow = eval::cpToInternalUnits(500);
+		constexpr Score InitialWindow = 16;
+		constexpr Score MaxWindow = 840;
 
 		constexpr i32 MinNullmoveDepth = 3;
 		constexpr i32 MinLmrDepth = 3;
@@ -75,8 +75,8 @@ namespace polaris::search::pvs
 
 		constexpr i32 MaxFpDepth = 8;
 
-		constexpr Score FpMargin = eval::cpToInternalUnits(250);
-		constexpr Score FpScale = eval::cpToInternalUnits(60);
+		constexpr Score FpMargin = 420;
+		constexpr Score FpScale = 100;
 
 		constexpr i32 MinIirDepth = 4;
 
@@ -496,7 +496,7 @@ namespace polaris::search::pvs
 				&& !boards.nonPk(us).empty())
 			{
 				const auto R = std::min(depth,
-					3 + depth / 3 + std::min((stack.eval - beta) / eval::cpToInternalUnits(200), 3));
+					3 + depth / 3 + std::min((stack.eval - beta) / 336, 3));
 
 				const auto guard = pos.applyMove(NullMove, &m_table);
 				const auto score = -search(data, depth - R, newPly, -beta, -beta + 1, !cutnode);
@@ -567,7 +567,7 @@ namespace polaris::search::pvs
 				&& entry.depth >= depth - 3
 				&& entry.type != EntryType::Alpha)
 			{
-				const auto singularityBeta = std::max(-ScoreMate, entry.score - eval::cpToInternalUnits(2 * depth));
+				const auto singularityBeta = std::max(-ScoreMate, entry.score - 3 * depth);
 				const auto singularityDepth = (depth - 1) / 2;
 
 				data.stack[newPly].excluded = move;
