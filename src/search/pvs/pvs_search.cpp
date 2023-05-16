@@ -36,7 +36,7 @@ namespace polaris::search::pvs
 
 		constexpr i32 MinAspDepth = 6;
 
-		constexpr Score InitialWindow = 16;
+		constexpr Score InitialWindow = 17;
 		constexpr Score MaxWindow = 840;
 
 		constexpr i32 MinNullmoveDepth = 3;
@@ -76,7 +76,7 @@ namespace polaris::search::pvs
 		constexpr i32 MaxFpDepth = 8;
 
 		constexpr Score FpMargin = 420;
-		constexpr Score FpScale = 100;
+		constexpr Score FpScale = 101;
 
 		constexpr i32 MinIirDepth = 4;
 

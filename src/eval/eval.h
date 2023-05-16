@@ -28,7 +28,7 @@
 
 namespace polaris::eval
 {
-	constexpr Score Tempo = 26;
+	constexpr Score Tempo = 27;
 
 	constexpr usize PawnCacheEntries = 262144;
 
