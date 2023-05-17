@@ -160,10 +160,10 @@ namespace polaris
 
 	private:
 		static constexpr auto PromoScores = std::array {
-			 1, // knight
-			-2, // bishop
-			-1, // rook
-			 2  // queen
+			-1, // knight
+			-3, // bishop
+			-2, // rook
+			 1  // queen
 		};
 
 		inline Move findNext()
