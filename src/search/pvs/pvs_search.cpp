@@ -68,8 +68,8 @@ namespace polaris::search::pvs
 
 		constexpr i32 MaxSeePruningDepth = 9;
 
-		constexpr Score QuietSeeThreshold = -50; // scaled by depth
-		constexpr Score NoisySeeThreshold = -20; // scaled by depth * depth
+		constexpr Score QuietSeeThreshold = -59; // scaled by depth
+		constexpr Score NoisySeeThreshold = -19; // scaled by depth * depth
 
 		constexpr i32 MinSingularityDepth = 8;
 
