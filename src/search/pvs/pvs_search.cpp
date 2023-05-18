@@ -68,8 +68,8 @@ namespace polaris::search::pvs
 
 		constexpr i32 MaxSeePruningDepth = 9;
 
-		constexpr Score QuietSeeThreshold = -50;
-		constexpr Score NoisySeeThreshold = -90;
+		constexpr Score QuietSeeThreshold = -50; // scaled by depth
+		constexpr Score NoisySeeThreshold = -20; // scaled by depth * depth
 
 		constexpr i32 MinSingularityDepth = 8;
 
@@ -536,7 +536,8 @@ namespace polaris::search::pvs
 
 				// see pruning
 				if (depth <= MaxSeePruningDepth
-					&& !see::see(pos, move, depth * (pos.isNoisy(move) ? NoisySeeThreshold : QuietSeeThreshold)))
+					&& !see::see(pos, move,
+						depth * (pos.isNoisy(move) ? (depth * NoisySeeThreshold) : QuietSeeThreshold)))
 					continue;
 			}
 
