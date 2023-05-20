@@ -34,13 +34,13 @@ namespace polaris::limit
 			&& util::g_timer.time() >= m_maxTime;
 	}
 
-	TimeManager::TimeManager(f64 start, f64 remaining, f64 increment, i32 toGo, f64 overhead)
+	TimeManager::TimeManager(f64 start, f64 remaining, f64 increment, i32 toGo, f64 overhead, u32 fullmoves)
 		: m_startTime{start}
 	{
 		const auto limit = std::max(0.001, remaining - overhead);
 
 		if (toGo == 0)
-			toGo = 25;
+			toGo = std::max(20, static_cast<i32>(50 - fullmoves));
 
 		const auto baseTime = limit / static_cast<f64>(toGo) + increment * 3 / 4;
 

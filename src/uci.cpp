@@ -385,7 +385,8 @@ namespace polaris
 					limiter = std::make_unique<limit::TimeManager>(startTime,
 						static_cast<f64>(timeRemaining) / 1000.0,
 						static_cast<f64>(increment) / 1000.0,
-						toGo, static_cast<f64>(m_moveOverhead) / 1000.0);
+						toGo, static_cast<f64>(m_moveOverhead) / 1000.0,
+						m_pos.fullmove());
 				else if (!limiter)
 					limiter = std::make_unique<limit::InfiniteLimiter>();
 

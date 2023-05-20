@@ -44,7 +44,7 @@ namespace polaris::limit
 	class TimeManager final : public ISearchLimiter
 	{
 	public:
-		TimeManager(f64 start, f64 remaining, f64 increment, i32 toGo, f64 overhead);
+		TimeManager(f64 start, f64 remaining, f64 increment, i32 toGo, f64 overhead, u32 fullmoves);
 		~TimeManager() final = default;
 
 		void update(const search::SearchData &data, bool stableBestMove) final;
