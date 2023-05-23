@@ -53,7 +53,7 @@ namespace polaris::tunable
 		constexpr i32 MinSingularityDepth = 8;
 
 		constexpr i32 SingularityDepthMargin = 3;
-		constexpr i32 SingularityDepthScale = 2;
+		constexpr i32 SingularityDepthScale = 1;
 
 		constexpr i32 MaxFpDepth = 8;
 
