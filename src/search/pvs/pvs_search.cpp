@@ -557,6 +557,9 @@ namespace polaris::search::pvs
 
 				if (score < singularityBeta)
 					extension = 1;
+				// multicut
+				else if (singularityBeta >= beta)
+					return singularityBeta;
 			}
 
 			Score score{};
