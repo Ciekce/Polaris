@@ -657,7 +657,7 @@ namespace polaris::search::pvs
 		{
 			if (stack.excluded)
 				return alpha;
-			return inCheck ? (-ScoreMate + realPly) : 0;
+			return inCheck ? (-ScoreMate + realPly) : drawScore(data.search.nodes);
 		}
 
 		// increase depth for tt if in check
