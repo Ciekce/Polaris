@@ -29,7 +29,6 @@
 #include <cassert>
 
 #include "../hash.h"
-#include "../eval/material.h"
 #include "../util/parse.h"
 #include "../util/split.h"
 #include "../attacks/attacks.h"
@@ -49,54 +48,50 @@ namespace polaris
 		constexpr auto PhaseIncBase = std::array{0, 1, 1, 2, 4, 0, 0};
 	}
 
-	HistoryGuard::~HistoryGuard()
-	{
-		m_pos.popMove();
-	}
+	template void Position::applyMoveUnchecked<false, false>(Move, eval::nnue::NnueState *, TTable *);
+	template void Position::applyMoveUnchecked<true, false>(Move, eval::nnue::NnueState *, TTable *);
+	template void Position::applyMoveUnchecked<false, true>(Move, eval::nnue::NnueState *, TTable *);
+	template void Position::applyMoveUnchecked<true, true>(Move, eval::nnue::NnueState *, TTable *);
 
-	template void Position::applyMoveUnchecked<false, false>(Move move, TTable *prefetchTt);
-	template void Position::applyMoveUnchecked<true, false>(Move move, TTable *prefetchTt);
-	template void Position::applyMoveUnchecked<false, true>(Move move, TTable *prefetchTt);
-	template void Position::applyMoveUnchecked<true, true>(Move move, TTable *prefetchTt);
+	template void Position::popMove<false>(eval::nnue::NnueState *);
+	template void Position::popMove<true>(eval::nnue::NnueState *);
 
-	template Piece Position::setPiece<false, false>(Square, Piece);
-	template Piece Position::setPiece<true, false>(Square, Piece);
-	template Piece Position::setPiece<false, true>(Square, Piece);
-	template Piece Position::setPiece<true, true>(Square, Piece);
+	template Piece Position::setPiece<false, false>(Square, Piece, eval::nnue::NnueState *);
+	template Piece Position::setPiece<true, false>(Square, Piece, eval::nnue::NnueState *);
+	template Piece Position::setPiece<false, true>(Square, Piece, eval::nnue::NnueState *);
+	template Piece Position::setPiece<true, true>(Square, Piece, eval::nnue::NnueState *);
 
-	template Piece Position::removePiece<false, false>(Square);
-	template Piece Position::removePiece<true, false>(Square);
-	template Piece Position::removePiece<false, true>(Square);
-	template Piece Position::removePiece<true, true>(Square);
+	template Piece Position::removePiece<false, false>(Square, eval::nnue::NnueState *);
+	template Piece Position::removePiece<true, false>(Square, eval::nnue::NnueState *);
+	template Piece Position::removePiece<false, true>(Square, eval::nnue::NnueState *);
+	template Piece Position::removePiece<true, true>(Square, eval::nnue::NnueState *);
 
-	template Piece Position::movePiece<false, false>(Square, Square);
-	template Piece Position::movePiece<true, false>(Square, Square);
-	template Piece Position::movePiece<false, true>(Square, Square);
-	template Piece Position::movePiece<true, true>(Square, Square);
+	template Piece Position::movePiece<false, false>(Square, Square, eval::nnue::NnueState *);
+	template Piece Position::movePiece<true, false>(Square, Square, eval::nnue::NnueState *);
+	template Piece Position::movePiece<false, true>(Square, Square, eval::nnue::NnueState *);
+	template Piece Position::movePiece<true, true>(Square, Square, eval::nnue::NnueState *);
 
-	template Piece Position::promotePawn<false, false>(Square, Square, BasePiece);
-	template Piece Position::promotePawn<true, false>(Square, Square, BasePiece);
-	template Piece Position::promotePawn<false, true>(Square, Square, BasePiece);
-	template Piece Position::promotePawn<true, true>(Square, Square, BasePiece);
+	template Piece Position::promotePawn<false, false>(Square, Square, BasePiece, eval::nnue::NnueState *);
+	template Piece Position::promotePawn<true, false>(Square, Square, BasePiece, eval::nnue::NnueState *);
+	template Piece Position::promotePawn<false, true>(Square, Square, BasePiece, eval::nnue::NnueState *);
+	template Piece Position::promotePawn<true, true>(Square, Square, BasePiece, eval::nnue::NnueState *);
 
-	template void Position::castle<false, false>(Square, Square);
-	template void Position::castle<true, false>(Square, Square);
-	template void Position::castle<false, true>(Square, Square);
-	template void Position::castle<true, true>(Square, Square);
+	template void Position::castle<false, false>(Square, Square, eval::nnue::NnueState *);
+	template void Position::castle<true, false>(Square, Square, eval::nnue::NnueState *);
+	template void Position::castle<false, true>(Square, Square, eval::nnue::NnueState *);
+	template void Position::castle<true, true>(Square, Square, eval::nnue::NnueState *);
 
-	template Piece Position::enPassant<false, false>(Square, Square);
-	template Piece Position::enPassant<true, false>(Square, Square);
-	template Piece Position::enPassant<false, true>(Square, Square);
-	template Piece Position::enPassant<true, true>(Square, Square);
+	template Piece Position::enPassant<false, false>(Square, Square, eval::nnue::NnueState *);
+	template Piece Position::enPassant<true, false>(Square, Square, eval::nnue::NnueState *);
+	template Piece Position::enPassant<false, true>(Square, Square, eval::nnue::NnueState *);
+	template Piece Position::enPassant<true, true>(Square, Square, eval::nnue::NnueState *);
 
 	template void Position::regen<false>();
 	template void Position::regen<true>();
 
 #ifndef NDEBUG
-	template bool Position::verify<false, false>();
-	template bool Position::verify<true, false>();
-	template bool Position::verify<false, true>();
-	template bool Position::verify<true, true>();
+	template bool Position::verify<false>();
+	template bool Position::verify<true>();
 #endif
 
 	Position::Position(bool init)
@@ -107,9 +102,12 @@ namespace polaris
 			m_states.push_back({});
 	}
 
-	template <bool UpdateMaterial, bool History>
-	void Position::applyMoveUnchecked(Move move, TTable *prefetchTt)
+	template <bool UpdateNnue, bool History>
+	void Position::applyMoveUnchecked(Move move, eval::nnue::NnueState *nnueState, TTable *prefetchTt)
 	{
+		if constexpr (UpdateNnue)
+			nnueState->push();
+
 		auto &prevState = currState();
 
 		prevState.lastMove = move;
@@ -135,7 +133,7 @@ namespace polaris
 #ifndef NDEBUG
 			if constexpr (VerifyAll)
 			{
-				if (!verify<UpdateMaterial, History>())
+				if (!verify<History>())
 				{
 					printHistory(move);
 					__builtin_trap();
@@ -202,10 +200,18 @@ namespace polaris
 
 		switch (moveType)
 		{
-		case MoveType::Standard: prevState.captured = movePiece<true, UpdateMaterial>(moveSrc, moveDst); break;
-		case MoveType::Promotion: prevState.captured = promotePawn<true, UpdateMaterial>(moveSrc, moveDst, move.target()); break;
-		case MoveType::Castling: castle<true, UpdateMaterial>(moveSrc, moveDst); break;
-		case MoveType::EnPassant: prevState.captured = enPassant<true, UpdateMaterial>(moveSrc, moveDst); break;
+		case MoveType::Standard:
+			prevState.captured = movePiece<true, UpdateNnue>(moveSrc, moveDst, nnueState);
+			break;
+		case MoveType::Promotion:
+			prevState.captured = promotePawn<true, UpdateNnue>(moveSrc, moveDst, move.target(), nnueState);
+			break;
+		case MoveType::Castling:
+			castle<true, UpdateNnue>(moveSrc, moveDst, nnueState);
+			break;
+		case MoveType::EnPassant:
+			prevState.captured = enPassant<true, UpdateNnue>(moveSrc, moveDst, nnueState);
+			break;
 		}
 
 		if (prevState.captured == Piece::None
@@ -252,7 +258,7 @@ namespace polaris
 #ifndef NDEBUG
 		if constexpr (VerifyAll)
 		{
-			if (!verify<UpdateMaterial, History>())
+			if (!verify<History>())
 			{
 				printHistory();
 				__builtin_trap();
@@ -261,9 +267,13 @@ namespace polaris
 #endif
 	}
 
-	void Position::popMove()
+	template <bool UpdateNnue>
+	void Position::popMove(eval::nnue::NnueState *nnueState)
 	{
 		assert(m_states.size() > 1 && "popMove() with no previous move?");
+
+		if constexpr (UpdateNnue)
+			nnueState->pop();
 
 		m_states.pop_back();
 
@@ -511,8 +521,8 @@ namespace polaris
 		return fen.str();
 	}
 
-	template <bool UpdateKey, bool UpdateMaterial>
-	Piece Position::setPiece(Square square, Piece piece)
+	template <bool UpdateKey, bool UpdateNnue>
+	Piece Position::setPiece(Square square, Piece piece, eval::nnue::NnueState *nnueState)
 	{
 		auto &state = currState();
 
@@ -524,8 +534,8 @@ namespace polaris
 
 			state.phase -= PhaseInc[static_cast<i32>(captured)];
 
-			if constexpr (UpdateMaterial)
-				state.material -= eval::pieceSquareValue(captured, square);
+			if constexpr (UpdateNnue)
+				nnueState->updateFeature<false>(captured, square);
 
 			if constexpr (UpdateKey)
 			{
@@ -546,8 +556,8 @@ namespace polaris
 
 		state.phase += PhaseInc[static_cast<usize>(piece)];
 
-		if constexpr (UpdateMaterial)
-			state.material += eval::pieceSquareValue(piece, square);
+		if constexpr (UpdateNnue)
+			nnueState->updateFeature<true>(piece, square);
 
 		if constexpr (UpdateKey)
 		{
@@ -561,8 +571,8 @@ namespace polaris
 		return captured;
 	}
 
-	template <bool UpdateKey, bool UpdateMaterial>
-	Piece Position::removePiece(Square square)
+	template <bool UpdateKey, bool UpdateNnue>
+	Piece Position::removePiece(Square square, eval::nnue::NnueState *nnueState)
 	{
 		auto &state = currState();
 
@@ -574,8 +584,8 @@ namespace polaris
 
 			state.phase -= PhaseInc[static_cast<usize>(piece)];
 
-			if constexpr (UpdateMaterial)
-				state.material -= eval::pieceSquareValue(piece, square);
+			if constexpr (UpdateNnue)
+				nnueState->updateFeature<false>(piece, square);
 
 			if constexpr (UpdateKey)
 			{
@@ -589,8 +599,8 @@ namespace polaris
 		return piece;
 	}
 
-	template <bool UpdateKey, bool UpdateMaterial>
-	Piece Position::movePiece(Square src, Square dst)
+	template <bool UpdateKey, bool UpdateNnue>
+	Piece Position::movePiece(Square src, Square dst, eval::nnue::NnueState *nnueState)
 	{
 		auto &state = currState();
 
@@ -601,8 +611,8 @@ namespace polaris
 			state.boards.removePiece(dst, captured);
 			state.phase -= PhaseInc[static_cast<usize>(captured)];
 
-			if constexpr (UpdateMaterial)
-				state.material -= eval::pieceSquareValue(captured, dst);
+			if constexpr (UpdateNnue)
+				nnueState->updateFeature<false>(captured, dst);
 
 			if constexpr (UpdateKey)
 			{
@@ -622,8 +632,8 @@ namespace polaris
 		else if (piece == Piece::WhiteKing)
 			state.whiteKing = dst;
 
-		if constexpr (UpdateMaterial)
-			state.material += eval::pieceSquareValue(piece, dst) - eval::pieceSquareValue(piece, src);
+		if constexpr (UpdateNnue)
+			nnueState->moveFeature(piece, src, dst);
 
 		if constexpr (UpdateKey)
 		{
@@ -636,8 +646,8 @@ namespace polaris
 		return captured;
 	}
 
-	template <bool UpdateKey, bool UpdateMaterial>
-	Piece Position::promotePawn(Square src, Square dst, BasePiece target)
+	template <bool UpdateKey, bool UpdateNnue>
+	Piece Position::promotePawn(Square src, Square dst, BasePiece target, eval::nnue::NnueState *nnueState)
 	{
 		auto &state = currState();
 
@@ -649,8 +659,8 @@ namespace polaris
 
 			state.phase -= PhaseInc[static_cast<usize>(captured)];
 
-			if constexpr (UpdateMaterial)
-				state.material -= eval::pieceSquareValue(captured, dst);
+			if constexpr (UpdateNnue)
+				nnueState->updateFeature<false>(captured, dst);
 
 			// cannot capture a pawn when promoting
 			if constexpr (UpdateKey)
@@ -662,13 +672,15 @@ namespace polaris
 
 		state.boards.moveAndChangePiece(src, dst, pawn, target);
 
-		if constexpr(UpdateMaterial || UpdateKey)
+		if constexpr(UpdateNnue || UpdateKey)
 		{
 			const auto coloredTarget = colorPiece(target, color);
 
-			if constexpr (UpdateMaterial)
-				state.material += eval::pieceSquareValue(coloredTarget, dst)
-					- eval::pieceSquareValue(pawn, src);
+			if constexpr (UpdateNnue)
+			{
+				nnueState->updateFeature<false>(pawn, src);
+				nnueState->updateFeature<true>(coloredTarget, dst);
+			}
 
 			if constexpr (UpdateKey)
 			{
@@ -681,8 +693,8 @@ namespace polaris
 		return captured;
 	}
 
-	template <bool UpdateKey, bool UpdateMaterial>
-	void Position::castle(Square kingSrc, Square rookSrc)
+	template <bool UpdateKey, bool UpdateNnue>
+	void Position::castle(Square kingSrc, Square rookSrc, eval::nnue::NnueState *nnueState)
 	{
 		const auto rank = squareRank(kingSrc);
 
@@ -703,22 +715,22 @@ namespace polaris
 
 		if (g_opts.chess960)
 		{
-			const auto rook = removePiece<UpdateKey, UpdateMaterial>(rookSrc);
+			const auto rook = removePiece<UpdateKey, UpdateNnue>(rookSrc, nnueState);
 
 			if (kingSrc != kingDst)
-				movePiece<UpdateKey, UpdateMaterial>(kingSrc, kingDst);
+				movePiece<UpdateKey, UpdateNnue>(kingSrc, kingDst, nnueState);
 
-			setPiece<UpdateKey, UpdateMaterial>(rookDst, rook);
+			setPiece<UpdateKey, UpdateNnue>(rookDst, rook, nnueState);
 		}
 		else
 		{
-			movePiece<UpdateKey, UpdateMaterial>(kingSrc, kingDst);
-			movePiece<UpdateKey, UpdateMaterial>(rookSrc, rookDst);
+			movePiece<UpdateKey, UpdateNnue>(kingSrc, kingDst, nnueState);
+			movePiece<UpdateKey, UpdateNnue>(rookSrc, rookDst, nnueState);
 		}
 	}
 
-	template <bool UpdateKey, bool UpdateMaterial>
-	Piece Position::enPassant(Square src, Square dst)
+	template <bool UpdateKey, bool UpdateNnue>
+	Piece Position::enPassant(Square src, Square dst, eval::nnue::NnueState *nnueState)
 	{
 		auto &state = currState();
 
@@ -727,9 +739,8 @@ namespace polaris
 
 		state.boards.movePiece(src, dst, pawn);
 
-		if constexpr (UpdateMaterial)
-			state.material += eval::pieceSquareValue(pawn, dst)
-				- eval::pieceSquareValue(pawn, src);
+		if constexpr (UpdateNnue)
+			nnueState->moveFeature(pawn, src, dst);
 
 		if constexpr (UpdateKey)
 		{
@@ -750,8 +761,8 @@ namespace polaris
 
 		// pawns do not affect game phase
 
-		if constexpr (UpdateMaterial)
-			state.material -= eval::pieceSquareValue(enemyPawn, captureSquare);
+		if constexpr (UpdateNnue)
+			nnueState->updateFeature<false>(enemyPawn, captureSquare);
 
 		if constexpr (UpdateKey)
 		{
@@ -761,22 +772,6 @@ namespace polaris
 		}
 
 		return enemyPawn;
-	}
-
-	void Position::regenMaterial()
-	{
-		auto &state = currState();
-
-		state.material = TaperedScore{};
-
-		auto occ = state.boards.occupancy();
-		while (occ)
-		{
-			const auto square = occ.popLowestSquare();
-			const auto piece = state.boards.pieceAt(square);
-
-			state.material += eval::pieceSquareValue(piece, square);
-		}
 	}
 
 	template <bool EnPassantFromMoves>
@@ -810,8 +805,6 @@ namespace polaris
 				}
 			}
 		}
-
-		regenMaterial();
 
 		if (state.phase > 24)
 			state.phase = 24;
@@ -868,7 +861,7 @@ namespace polaris
 		std::cerr << std::endl;
 	}
 
-	template <bool CheckMaterial, bool HasHistory>
+	template <bool HasHistory>
 	bool Position::verify()
 	{
 		Position regened{*this};
@@ -897,20 +890,6 @@ namespace polaris
 		PS_CHECK(currState().pawnKey, regened.currState().pawnKey, "pawn keys")
 
 		out << std::dec;
-
-		if constexpr (CheckMaterial)
-		{
-			if (currState().material != regened.currState().material)
-			{
-				out << "info string material scores do not match";
-				out << "\ninfo string current: ";
-				printScore(out, currState().material);
-				out << "\ninfo string regened: ";
-				printScore(out, regened.currState().material);
-				out << '\n';
-				failed = true;
-			}
-		}
 
 #undef PS_CHECK_PIECES
 #undef PS_CHECK_PIECE

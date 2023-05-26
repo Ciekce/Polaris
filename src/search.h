@@ -36,7 +36,7 @@
 #include "limit/limit.h"
 #include "util/timer.h"
 #include "ttable.h"
-#include "eval/eval.h"
+#include "eval/nnue.h"
 #include "movegen.h"
 
 namespace polaris::search
@@ -115,7 +115,7 @@ namespace polaris::search
 			i32 maxDepth{};
 			SearchData search{};
 
-			eval::PawnCache pawnCache{};
+			eval::nnue::NnueState nnueState{};
 
 			std::vector<SearchStackEntry> stack{};
 			std::vector<ScoredMoveList> moveStack{};

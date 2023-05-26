@@ -33,7 +33,7 @@
 #include "position/position.h"
 #include "search.h"
 #include "movegen.h"
-#include "eval/eval.h"
+#include "eval/nnue.h"
 #include "pretty.h"
 #include "ttable.h"
 #include "limit/trivial.h"
@@ -44,7 +44,6 @@
 #include "tunable.h"
 
 #include "hash.h"
-#include "eval/material.h"
 
 namespace polaris
 {
@@ -52,7 +51,7 @@ namespace polaris
 
 	namespace
 	{
-		constexpr auto Name = "Polaris";
+		constexpr auto Name = "NNUElaris";
 		constexpr auto Version = PS_STRINGIFY(PS_VERSION);
 		constexpr auto Author = "Ciekce";
 
@@ -226,10 +225,8 @@ namespace polaris
 					for (; next < tokens.size(); ++next)
 					{
 						if (const auto move = m_pos.moveFromUci(tokens[next]))
-							m_pos.applyMoveUnchecked<false>(move);
+							m_pos.applyMoveUnchecked<false>(move, nullptr);
 					}
-
-					m_pos.regenMaterial();
 				}
 			}
 		}
@@ -637,7 +634,10 @@ namespace polaris
 
 			std::cout << std::endl;
 
-			const auto staticEval = eval::staticEvalAbs(m_pos);
+			eval::nnue::NnueState state{};
+			state.reset(m_pos.boards());
+			const auto staticEval = state.evaluate(m_pos.toMove());
+
 			std::cout << "Static eval: ";
 			printScore(std::cout, staticEval);
 			std::cout << std::endl;
@@ -645,7 +645,10 @@ namespace polaris
 
 		void UciHandler::handleEval()
 		{
-			eval::printEval(m_pos);
+			eval::nnue::NnueState state{};
+			state.reset(m_pos.boards());
+			printScore(std::cout, state.evaluate(m_pos.toMove()));
+			std::cout << std::endl;
 		}
 
 		void UciHandler::handleCheckers()

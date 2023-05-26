@@ -44,7 +44,7 @@ namespace polaris
 
 			for (const auto [move, score] : moves)
 			{
-				const auto guard = pos.applyMove<false>(move);
+				const auto guard = pos.applyMove<false>(move, nullptr);
 
 				if (pos.isAttacked(pos.oppKing(opp), opp))
 					continue;
@@ -76,7 +76,7 @@ namespace polaris
 
 		for (const auto [move, score] : moves)
 		{
-			const auto guard = pos.applyMove<false>(move);
+			const auto guard = pos.applyMove<false>(move, nullptr);
 
 			if (pos.isAttacked(pos.oppKing(opp), opp))
 				continue;

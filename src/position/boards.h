@@ -48,6 +48,11 @@ namespace polaris
 			return m_boards[static_cast<i32>(piece)] & (c == Color::Black ? m_blackPop : m_whitePop);
 		}
 
+		[[nodiscard]] inline Bitboard forPiece(Piece piece) const
+		{
+			return forPiece(basePiece(piece), pieceColor(piece));
+		}
+
 		[[nodiscard]] inline auto &forColor(Color color)
 		{
 			return color == Color::Black ? m_blackPop : m_whitePop;

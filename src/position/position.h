@@ -29,6 +29,7 @@
 #include "../move.h"
 #include "../attacks/attacks.h"
 #include "../ttable.h"
+#include "../eval/nnue.h"
 
 namespace polaris
 {
@@ -38,8 +39,6 @@ namespace polaris
 
 		u64 key{};
 		u64 pawnKey{};
-
-		TaperedScore material{};
 
 		Bitboard checkers{};
 
@@ -59,7 +58,7 @@ namespace polaris
 		Square whiteKing{Square::None};
 	};
 
-	static_assert(sizeof(BoardState) == 112);
+	static_assert(sizeof(BoardState) == 104);
 
 	[[nodiscard]] inline auto squareToString(Square square)
 	{
@@ -72,14 +71,18 @@ namespace polaris
 
 	class Position;
 
+	template <bool UpdateNnue>
 	class HistoryGuard
 	{
 	public:
-		explicit HistoryGuard(Position &pos) : m_pos{pos} {}
-		~HistoryGuard();
+		HistoryGuard(Position &pos, eval::nnue::NnueState *nnueState)
+			: m_pos{pos},
+			  m_nnueState{nnueState} {}
+		inline ~HistoryGuard();
 
 	private:
 		Position &m_pos;
+		eval::nnue::NnueState *m_nnueState;
 	};
 
 	class Position
@@ -91,18 +94,20 @@ namespace polaris
 		Position(const Position &) = default;
 		Position(Position &&) = default;
 
-		template <bool UpdateMaterial = true, bool History = true>
-		void applyMoveUnchecked(Move move, TTable *prefetchTt = nullptr);
+		template <bool UpdateNnue = true, bool History = true>
+		void applyMoveUnchecked(Move move, eval::nnue::NnueState *nnueState, TTable *prefetchTt = nullptr);
 
-		template <bool UpdateMaterial = true>
-		[[nodiscard]] inline HistoryGuard applyMove(Move move, TTable *prefetchTt = nullptr)
+		template <bool UpdateNnue = true>
+		[[nodiscard]] inline HistoryGuard<UpdateNnue> applyMove(Move move,
+			eval::nnue::NnueState *nnueState, TTable *prefetchTt = nullptr)
 		{
-			HistoryGuard guard{*this};
-			applyMoveUnchecked<UpdateMaterial>(move, prefetchTt);
+			HistoryGuard<UpdateNnue> guard{*this, UpdateNnue ? nnueState : nullptr};
+			applyMoveUnchecked<UpdateNnue>(move, nnueState, prefetchTt);
 			return guard;
 		}
 
-		void popMove();
+		template <bool UpdateNnue = true>
+		void popMove(eval::nnue::NnueState *nnueState);
 
 		[[nodiscard]] bool isPseudolegal(Move move) const;
 
@@ -126,8 +131,6 @@ namespace polaris
 		[[nodiscard]] inline const auto &castlingRooks() const { return currState().castlingRooks; }
 
 		[[nodiscard]] inline auto enPassant() const { return currState().enPassant; }
-
-		[[nodiscard]] inline auto material() const { return currState().material; }
 
 		[[nodiscard]] inline auto halfmove() const { return currState().halfmove; }
 		[[nodiscard]] inline auto fullmove() const { return m_fullmove; }
@@ -311,34 +314,6 @@ namespace polaris
 			return false;
 		}
 
-		[[nodiscard]] inline bool isLikelyDrawn() const
-		{
-			const auto &boards = this->boards();
-
-			if (!boards.pawns().empty() || !boards.majors().empty())
-				return false;
-
-			// KNK or KNNK
-			if ((boards.blackNonPk().empty() && boards.whiteNonPk() == boards.whiteKnights() && boards.whiteKnights().popcount() < 3)
-				|| (boards.whiteNonPk().empty() && boards.blackNonPk() == boards.blackKnights() && boards.blackKnights().popcount() < 3))
-				return true;
-
-			if (!boards.nonPk().empty())
-			{
-				// KNKN or KNKB or KBKB (OCB handled in isDrawn())
-				if (!boards.whiteMinors().multiple() && !boards.blackMinors().multiple())
-					return true;
-
-				// KBBKB
-				if (boards.nonPk() == boards.bishops()
-					&& (boards.whiteBishops().popcount() < 3 && !boards.blackBishops().multiple()
-						|| boards.blackBishops().popcount() < 3 && !boards.whiteBishops().multiple()))
-					return true;
-			}
-
-			return false;
-		}
-
 		[[nodiscard]] inline Move lastMove() const
 		{
 			return m_states.empty() ? NullMove : currState().lastMove;
@@ -387,12 +362,9 @@ namespace polaris
 				&& currState().whiteKing == other.m_states.back().whiteKing
 				&& currState().checkers == other.m_states.back().checkers
 				&& currState().phase == other.m_states.back().phase
-				&& currState().material == other.m_states.back().material
 				&& currState().key == other.m_states.back().key
 				&& currState().pawnKey == other.m_states.back().pawnKey;
 		}
-
-		void regenMaterial();
 
 		template <bool EnPassantFromMoves = false>
 		void regen();
@@ -400,7 +372,7 @@ namespace polaris
 #ifndef NDEBUG
 		void printHistory(Move last = NullMove);
 
-		template <bool CheckMaterial = true, bool HasHistory = true>
+		template <bool HasHistory = true>
 		bool verify();
 #endif
 
@@ -413,19 +385,19 @@ namespace polaris
 		[[nodiscard]] static std::optional<Position> fromFen(const std::string &fen);
 
 	private:
-		template <bool UpdateKeys = true, bool UpdateMaterial = true>
-		Piece setPiece(Square square, Piece piece);
-		template <bool UpdateKeys = true, bool UpdateMaterial = true>
-		Piece removePiece(Square square);
-		template <bool UpdateKeys = true, bool UpdateMaterial = true>
-		Piece movePiece(Square src, Square dst);
+		template <bool UpdateKeys = true, bool UpdateNnue = true>
+		Piece setPiece(Square square, Piece piece, eval::nnue::NnueState *nnueState);
+		template <bool UpdateKeys = true, bool UpdateNnue = true>
+		Piece removePiece(Square square, eval::nnue::NnueState *nnueState);
+		template <bool UpdateKeys = true, bool UpdateNnue = true>
+		Piece movePiece(Square src, Square dst, eval::nnue::NnueState *nnueState);
 
-		template <bool UpdateKeys = true, bool UpdateMaterial = true>
-		Piece promotePawn(Square src, Square dst, BasePiece target);
-		template <bool UpdateKeys = true, bool UpdateMaterial = true>
-		void castle(Square kingSrc, Square rookSrc);
-		template <bool UpdateKeys = true, bool UpdateMaterial = true>
-		Piece enPassant(Square src, Square dst);
+		template <bool UpdateKeys = true, bool UpdateNnue = true>
+		Piece promotePawn(Square src, Square dst, BasePiece target, eval::nnue::NnueState *nnueState);
+		template <bool UpdateKeys = true, bool UpdateNnue = true>
+		void castle(Square kingSrc, Square rookSrc, eval::nnue::NnueState *nnueState);
+		template <bool UpdateKeys = true, bool UpdateNnue = true>
+		Piece enPassant(Square src, Square dst, eval::nnue::NnueState *nnueState);
 
 		[[nodiscard]] inline Bitboard calcCheckers() const
 		{
@@ -441,6 +413,12 @@ namespace polaris
 
 		std::vector<BoardState> m_states{};
 	};
+
+	template <bool UpdateNnue>
+	HistoryGuard<UpdateNnue>::~HistoryGuard()
+	{
+		m_pos.popMove<UpdateNnue>(m_nnueState);
+	}
 
 	[[nodiscard]] Square squareFromString(const std::string &str);
 }

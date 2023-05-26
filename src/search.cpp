@@ -24,7 +24,6 @@
 
 #include "uci.h"
 #include "movegen.h"
-#include "eval/eval.h"
 #include "limit/trivial.h"
 #include "opts.h"
 
@@ -90,7 +89,6 @@ namespace polaris::search
 
 		for (auto &thread : m_threads)
 		{
-			thread.pawnCache.clear();
 			std::fill(thread.stack.begin(), thread.stack.end(), SearchStackEntry{});
 			thread.history.clear();
 		}
@@ -109,6 +107,8 @@ namespace polaris::search
 			thread.maxDepth = maxDepth;
 			thread.search = SearchData{};
 			thread.pos = pos;
+
+			thread.nnueState.reset(thread.pos.boards());
 		}
 
 		m_limiter = std::move(limiter);
@@ -146,6 +146,8 @@ namespace polaris::search
 
 		threadData->pos = pos;
 		threadData->maxDepth = depth;
+
+		threadData->nnueState.reset(threadData->pos.boards());
 
 		m_stop.store(false, std::memory_order::seq_cst);
 
@@ -363,7 +365,7 @@ namespace polaris::search
 		const auto &boards = pos.boards();
 
 		if (ply >= MaxDepth)
-			return eval::staticEval(pos);
+			return data.nnueState.evaluate(pos.toMove());
 
 		const bool inCheck = pos.isCheck();
 
@@ -420,12 +422,10 @@ namespace polaris::search
 
 		const bool tableHit = !hashMove.isNull();
 
-		if (!root && !pos.lastMove())
-			stack.eval = eval::flipTempo(-prevStack.eval);
-		else if (stack.excluded)
+		if (stack.excluded)
 			stack.eval = data.stack[ply - 1].eval; // not prevStack
 		else stack.eval = inCheck ? 0
-				: (entry.score != 0 ? entry.score : eval::staticEval(pos, &data.pawnCache));
+				: (entry.score != 0 ? entry.score : data.nnueState.evaluate(pos.toMove()));
 
 		stack.currMove = {};
 
@@ -450,7 +450,7 @@ namespace polaris::search
 						+ depth / nmpReductionDepthScale()
 						+ std::min((stack.eval - beta) / nmpReductionEvalScale(), maxNmpEvalReduction()));
 
-				const auto guard = pos.applyMove(NullMove, &m_table);
+				const auto guard = pos.applyMove(NullMove, &data.nnueState, &m_table);
 				const auto score = -search(data, depth - R, ply + 1, moveStackIdx + 1, -beta, -beta + 1, !cutnode);
 
 				if (score >= beta)
@@ -498,7 +498,7 @@ namespace polaris::search
 
 			const auto movingPiece = boards.pieceAt(move.src());
 
-			auto guard = pos.applyMove(move, &m_table);
+			auto guard = pos.applyMove(move, &data.nnueState, &m_table);
 
 			if (pos.isAttacked(pos.king(us), them))
 				continue;
@@ -521,13 +521,13 @@ namespace polaris::search
 				const auto singularityDepth = (depth - 1) / 2;
 
 				data.stack[ply + 1].excluded = move;
-				pos.popMove();
+				pos.popMove(&data.nnueState);
 
 				const auto score = search(data, singularityDepth, ply + 1, moveStackIdx + 1,
 					-singularityBeta - 1, -singularityBeta, cutnode);
 
 				data.stack[ply + 1].excluded = NullMove;
-				pos.applyMoveUnchecked(move);
+				pos.applyMoveUnchecked(move, &data.nnueState);
 
 				if (score < singularityBeta)
 					extension = 1;
@@ -648,7 +648,7 @@ namespace polaris::search
 
 		auto &pos = data.pos;
 
-		const auto staticEval = eval::staticEval(pos, &data.pawnCache);
+		const auto staticEval = data.nnueState.evaluate(pos.toMove());
 
 		if (staticEval > alpha)
 		{
@@ -680,7 +680,7 @@ namespace polaris::search
 
 		while (const auto move = generator.next())
 		{
-			auto guard = pos.applyMove(move, &m_table);
+			auto guard = pos.applyMove(move, &data.nnueState, &m_table);
 
 			if (pos.isAttacked(pos.king(us), oppColor(us)))
 				continue;
@@ -743,7 +743,7 @@ namespace polaris::search
 		std::cout << " hashfull " << m_table.full() << " pv " << uci::moveToString(move);
 
 		Position pos{data.pos};
-		pos.applyMoveUnchecked<false, false>(move);
+		pos.applyMoveUnchecked<false, false>(move, nullptr);
 
 		StaticVector<u64, MaxDepth> positionsHit{};
 		positionsHit.push(pos.key());
@@ -754,7 +754,7 @@ namespace polaris::search
 
 			if (pvMove && pos.isPseudolegal(pvMove))
 			{
-				pos.applyMoveUnchecked<false, false>(pvMove);
+				pos.applyMoveUnchecked<false, false>(pvMove, nullptr);
 
 				if (std::find(positionsHit.begin(), positionsHit.end(), pos.key()) == positionsHit.end()
 					&& !pos.isAttacked(pos.king(pos.opponent()), pos.toMove()))
