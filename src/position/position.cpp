@@ -97,6 +97,7 @@ namespace polaris
 	Position::Position(bool init)
 	{
 		m_states.reserve(256);
+		m_hashes.reserve(512);
 
 		if (init)
 			m_states.push_back({});
@@ -113,7 +114,10 @@ namespace polaris
 		prevState.lastMove = move;
 
 		if constexpr (History)
+		{
 			m_states.push_back(prevState);
+			m_hashes.push_back(prevState.key);
+		}
 
 		auto &state = currState();
 
@@ -276,6 +280,7 @@ namespace polaris
 			nnueState->pop();
 
 		m_states.pop_back();
+		m_hashes.pop_back();
 
 		m_blackToMove = !m_blackToMove;
 

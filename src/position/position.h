@@ -282,11 +282,13 @@ namespace polaris
 			if (m_states.back().halfmove >= 100)
 				return true;
 
+			const auto currKey = currState().key;
+
 			i32 repetitions = 1;
 
-			for (i32 i = static_cast<i32>(m_states.size() - 1); i >= 0; --i)
+			for (i32 i = static_cast<i32>(m_hashes.size() - 1); i >= 0; --i)
 			{
-				if (m_states[i].key == currState().key
+				if (m_hashes[i] == currKey
 					&& ++repetitions == 3)
 					return true;
 			}
@@ -412,6 +414,7 @@ namespace polaris
 		u32 m_fullmove{1};
 
 		std::vector<BoardState> m_states{};
+		std::vector<u64> m_hashes{};
 	};
 
 	template <bool UpdateNnue>
