@@ -225,7 +225,7 @@ namespace polaris
 					for (; next < tokens.size(); ++next)
 					{
 						if (const auto move = m_pos.moveFromUci(tokens[next]))
-							m_pos.applyMoveUnchecked<false>(move, nullptr);
+							m_pos.applyMoveUnchecked<false, false>(move, nullptr);
 					}
 				}
 			}

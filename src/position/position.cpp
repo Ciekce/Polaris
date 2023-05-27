@@ -103,7 +103,7 @@ namespace polaris
 			m_states.push_back({});
 	}
 
-	template <bool UpdateNnue, bool History>
+	template <bool UpdateNnue, bool StateHistory>
 	void Position::applyMoveUnchecked(Move move, eval::nnue::NnueState *nnueState, TTable *prefetchTt)
 	{
 		if constexpr (UpdateNnue)
@@ -113,11 +113,10 @@ namespace polaris
 
 		prevState.lastMove = move;
 
-		if constexpr (History)
-		{
+		if constexpr (StateHistory)
 			m_states.push_back(prevState);
-			m_hashes.push_back(prevState.key);
-		}
+
+		m_hashes.push_back(prevState.key);
 
 		auto &state = currState();
 
@@ -137,7 +136,7 @@ namespace polaris
 #ifndef NDEBUG
 			if constexpr (VerifyAll)
 			{
-				if (!verify<History>())
+				if (!verify<StateHistory>())
 				{
 					printHistory(move);
 					__builtin_trap();
@@ -262,7 +261,7 @@ namespace polaris
 #ifndef NDEBUG
 		if constexpr (VerifyAll)
 		{
-			if (!verify<History>())
+			if (!verify<StateHistory>())
 			{
 				printHistory();
 				__builtin_trap();
