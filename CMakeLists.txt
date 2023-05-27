@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.15)
 
-project(polaris VERSION 1.6.20230526)
+project(polaris VERSION 1.6.20230527)
 
 set(CMAKE_CXX_STANDARD 20)
 
