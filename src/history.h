@@ -48,7 +48,7 @@ namespace polaris
 
 		[[nodiscard]] static inline HistoryMove from(const PositionBoards &boards, Move move)
 		{
-			return {boards.pieceAt(move.src()), moveActualDst(move)};
+			return {boards.pieceAt(move.src()), move.dst()};
 		}
 
 		[[nodiscard]] static inline HistoryMove from(const Position &pos, Move move)

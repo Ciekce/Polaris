@@ -505,7 +505,7 @@ namespace polaris::search
 			++data.search.nodes;
 			++legalMoves;
 
-			stack.currMove = {movingPiece, moveActualDst(move)};
+			stack.currMove = {movingPiece, move.dst()};
 
 			i32 extension{};
 
