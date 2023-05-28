@@ -530,6 +530,8 @@ namespace polaris::search
 
 				if (score < singularityBeta)
 					extension = 1;
+				else if (entry.score >= beta)
+					extension = -1;
 			}
 
 			Score score{};
