@@ -419,12 +419,14 @@ namespace polaris::search
 
 		const bool tableHit = !hashMove.isNull();
 
-		if (!root && !pos.lastMove())
-			stack.eval = eval::flipTempo(-prevStack.eval);
-		else if (stack.excluded)
-			stack.eval = data.stack[ply - 1].eval; // not prevStack
-		else stack.eval = inCheck ? 0
-				: (entry.score != 0 ? entry.score : eval::staticEval(pos, &data.pawnCache));
+		// in a singularity search we already have the eval of the position
+		if (!stack.excluded)
+		{
+			if (!root && !pos.lastMove())
+				stack.eval = eval::flipTempo(-prevStack.eval);
+			else stack.eval = inCheck ? 0
+					: (entry.score != 0 ? entry.score : eval::staticEval(pos, &data.pawnCache));
+		}
 
 		stack.currMove = {};
 
