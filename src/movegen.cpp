@@ -208,7 +208,7 @@ namespace polaris
 			precalculated<BasePiece::Knight, attacks::KnightAttacks>(dst, pos, dstMask);
 		}
 
-		inline void generateFrcCastling(ScoredMoveList &dst, const Position &pos, Bitboard occupancy,
+		inline void generateCastling(ScoredMoveList &dst, const Position &pos, Bitboard occupancy,
 			Square king, Square kingDst, Square rook, Square rookDst)
 		{
 			const auto toKingDst = rayBetween(king, kingDst);
@@ -233,58 +233,27 @@ namespace polaris
 					const auto &castlingRooks = pos.castlingRooks();
 					const auto occupancy = pos.boards().occupancy();
 
-					// this branch is cheaper than the extra checks the chess960 castling movegen does
-					if (g_opts.chess960)
+					if (pos.toMove() == Color::Black)
 					{
-						if (pos.toMove() == Color::Black)
-						{
-							if (castlingRooks.blackShort != Square::None)
-								generateFrcCastling(dst, pos, occupancy,
-									pos.blackKing(), Square::G8,
-									castlingRooks.blackShort, Square::F8);
-							if (castlingRooks.blackLong != Square::None)
-								generateFrcCastling(dst, pos, occupancy,
-									pos.blackKing(), Square::C8,
-									castlingRooks.blackLong, Square::D8);
-						}
-						else
-						{
-							if (castlingRooks.whiteShort != Square::None)
-								generateFrcCastling(dst, pos, occupancy,
-									pos.whiteKing(), Square::G1,
-									castlingRooks.whiteShort, Square::F1);
-							if (castlingRooks.whiteLong != Square::None)
-								generateFrcCastling(dst, pos, occupancy,
-									pos.whiteKing(), Square::C1,
-									castlingRooks.whiteLong, Square::D1);
-						}
+						if (castlingRooks.blackShort != Square::None)
+							generateCastling(dst, pos, occupancy,
+								pos.blackKing(), Square::G8,
+								castlingRooks.blackShort, Square::F8);
+						if (castlingRooks.blackLong != Square::None)
+							generateCastling(dst, pos, occupancy,
+								pos.blackKing(), Square::C8,
+								castlingRooks.blackLong, Square::D8);
 					}
 					else
 					{
-						if (pos.toMove() == Color::Black)
-						{
-							if (castlingRooks.blackShort != Square::None
-								&& (occupancy & U64(0x6000000000000000)).empty()
-								&& !pos.isAttacked(Square::F8, Color::White))
-								pushCastling(dst, pos.blackKing(), Square::H8);
-
-							if (castlingRooks.blackLong != Square::None
-								&& (occupancy & U64(0x0E00000000000000)).empty()
-								&& !pos.isAttacked(Square::D8, Color::White))
-								pushCastling(dst, pos.blackKing(), Square::A8);
-						}
-						else
-						{
-							if (castlingRooks.whiteShort != Square::None
-								&& (occupancy & U64(0x0000000000000060)).empty()
-								&& !pos.isAttacked(Square::F1, Color::Black))
-								pushCastling(dst, pos.whiteKing(), Square::H1);
-
-							if (castlingRooks.whiteLong != Square::None
-								&& (occupancy & U64(0x000000000000000E)).empty()
-								&& !pos.isAttacked(Square::D1, Color::Black))
-								pushCastling(dst, pos.whiteKing(), Square::A1);
-						}
+						if (castlingRooks.whiteShort != Square::None)
+							generateCastling(dst, pos, occupancy,
+								pos.whiteKing(), Square::G1,
+								castlingRooks.whiteShort, Square::F1);
+						if (castlingRooks.whiteLong != Square::None)
+							generateCastling(dst, pos, occupancy,
+								pos.whiteKing(), Square::C1,
+								castlingRooks.whiteLong, Square::D1);
 					}
 				}
 			}

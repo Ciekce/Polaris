@@ -356,30 +356,13 @@ namespace polaris
 			}
 
 			// same checks as for movegen
-			if (g_opts.chess960)
-			{
-				const auto toKingDst = rayBetween(src, kingDst);
-				const auto toRook = rayBetween(src, dst);
+			const auto toKingDst = rayBetween(src, kingDst);
+			const auto toRook = rayBetween(src, dst);
 
-				const auto castleOcc = occ ^ squareBit(src) ^ squareBit(dst);
+			const auto castleOcc = occ ^ squareBit(src) ^ squareBit(dst);
 
-				return (castleOcc & (toKingDst | toRook | squareBit(kingDst) | squareBit(rookDst))).empty()
-					&& !anyAttacked(toKingDst | squareBit(kingDst), them);
-			}
-			else
-			{
-				if (dst == state.castlingRooks.blackShort)
-					return (occ & U64(0x6000000000000000)).empty()
-						&& !isAttacked(Square::F8, Color::White);
-				else if (dst == state.castlingRooks.blackLong)
-					return (occ & U64(0x0E00000000000000)).empty()
-						&& !isAttacked(Square::D8, Color::White);
-				else if (dst == state.castlingRooks.whiteShort)
-					return (occ & U64(0x0000000000000060)).empty()
-						&& !isAttacked(Square::F1, Color::Black);
-				else return (occ & U64(0x000000000000000E)).empty()
-						&& !isAttacked(Square::D1, Color::Black);
-			}
+			return (castleOcc & (toKingDst | toRook | squareBit(kingDst) | squareBit(rookDst))).empty()
+				&& !anyAttacked(toKingDst | squareBit(kingDst), them);
 		}
 
 		if (base == BasePiece::Pawn)
@@ -705,20 +688,12 @@ namespace polaris
 			rookDst = toSquare(rank, 3);
 		}
 
-		if (g_opts.chess960)
-		{
-			const auto rook = removePiece<UpdateKey, UpdateMaterial>(rookSrc);
+		const auto rook = removePiece<UpdateKey, UpdateMaterial>(rookSrc);
 
-			if (kingSrc != kingDst)
-				movePiece<UpdateKey, UpdateMaterial>(kingSrc, kingDst);
-
-			setPiece<UpdateKey, UpdateMaterial>(rookDst, rook);
-		}
-		else
-		{
+		if (kingSrc != kingDst)
 			movePiece<UpdateKey, UpdateMaterial>(kingSrc, kingDst);
-			movePiece<UpdateKey, UpdateMaterial>(rookSrc, rookDst);
-		}
+
+		setPiece<UpdateKey, UpdateMaterial>(rookDst, rook);
 	}
 
 	template <bool UpdateKey, bool UpdateMaterial>
