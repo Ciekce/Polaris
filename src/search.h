@@ -93,7 +93,6 @@ namespace polaris::search
 			Move killer{NullMove};
 
 			Score eval{};
-			HistoryMove currMove{};
 			Move excluded{};
 		};
 
@@ -101,13 +100,14 @@ namespace polaris::search
 		{
 			ScoredMoveList moves{};
 			StaticVector<HistoryMove, 64> quietsTried{};
+			HistoryMove currMove{};
 		};
 
 		struct ThreadData
 		{
 			ThreadData()
 			{
-				stack.resize(MaxDepth + 2);
+				searchStack.resize(MaxDepth + 2);
 				moveStack.resize(MaxDepth * 2);
 			}
 
@@ -121,7 +121,7 @@ namespace polaris::search
 
 			eval::PawnCache pawnCache{};
 
-			std::vector<SearchStackEntry> stack{};
+			std::vector<SearchStackEntry> searchStack{};
 			std::vector<MoveStackEntry> moveStack{};
 
 			HistoryTable history{};

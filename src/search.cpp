@@ -91,7 +91,7 @@ namespace polaris::search
 		for (auto &thread : m_threads)
 		{
 			thread.pawnCache.clear();
-			std::fill(thread.stack.begin(), thread.stack.end(), SearchStackEntry{});
+			std::fill(thread.searchStack.begin(), thread.searchStack.end(), SearchStackEntry{});
 			thread.history.clear();
 		}
 	}
@@ -380,10 +380,11 @@ namespace polaris::search
 		const bool root = ply == 1;
 		const bool pv = root || beta - alpha > 1;
 
-		auto &stack = data.stack[ply];
-		auto &moveStack = data.moveStack[moveStackIdx];
+		auto &ss = data.searchStack[ply];
+		auto &ms = data.moveStack[moveStackIdx];
 
-		const auto &prevStack = data.stack[ply - 1];
+		const auto &prevSs = data.searchStack[ply - 1];
+		const auto &prevMs = data.moveStack[ply - 1];
 
 		if (ply > data.search.seldepth)
 			data.search.seldepth = ply;
@@ -401,7 +402,7 @@ namespace polaris::search
 		ProbedTTableEntry entry{};
 		auto hashMove = NullMove;
 
-		if (!stack.excluded)
+		if (!ss.excluded)
 		{
 			if (m_table.probe(entry, pos.key(), depth, alpha, beta) && !pv)
 				return entry.score;
@@ -411,7 +412,7 @@ namespace polaris::search
 			// internal iterative reduction
 			if (!inCheck
 				&& depth >= minIirDepth()
-				&& !stack.excluded
+				&& !ss.excluded
 				&& !hashMove
 				&& (pv || cutnode))
 				--depth;
@@ -420,28 +421,28 @@ namespace polaris::search
 		const bool tableHit = !hashMove.isNull();
 
 		// in a singularity search we already have the eval of the position
-		if (!stack.excluded)
+		if (!ss.excluded)
 		{
 			if (!root && !pos.lastMove())
-				stack.eval = eval::flipTempo(-prevStack.eval);
-			else stack.eval = inCheck ? 0
+				ss.eval = eval::flipTempo(-prevSs.eval);
+			else ss.eval = inCheck ? 0
 					: (entry.score != 0 ? entry.score : eval::staticEval(pos, &data.pawnCache));
 		}
 
-		stack.currMove = {};
+		ms.currMove = {};
 
-		const bool improving = !inCheck && ply > 1 && stack.eval > data.stack[ply - 2].eval;
+		const bool improving = !inCheck && ply > 1 && ss.eval > data.searchStack[ply - 2].eval;
 
-		if (!pv && !inCheck && !stack.excluded)
+		if (!pv && !inCheck && !ss.excluded)
 		{
 			// reverse futility pruning
 			if (depth <= maxRfpDepth()
-				&& stack.eval >= beta + rfpMargin() * depth / (improving ? 2 : 1))
-				return stack.eval;
+				&& ss.eval >= beta + rfpMargin() * depth / (improving ? 2 : 1))
+				return ss.eval;
 
 			// nullmove pruning
 			if (depth >= minNmpDepth()
-				&& stack.eval >= beta
+				&& ss.eval >= beta
 				&& !(tableHit && entry.type == EntryType::Alpha && entry.score < beta)
 				&& pos.lastMove()
 				&& !boards.nonPk(us).empty())
@@ -449,7 +450,7 @@ namespace polaris::search
 				const auto R = std::min(depth,
 					nmpReductionBase()
 						+ depth / nmpReductionDepthScale()
-						+ std::min((stack.eval - beta) / nmpReductionEvalScale(), maxNmpEvalReduction()));
+						+ std::min((ss.eval - beta) / nmpReductionEvalScale(), maxNmpEvalReduction()));
 
 				const auto guard = pos.applyMove(NullMove, &m_table);
 				const auto score = -search(data, depth - R, ply + 1, moveStackIdx + 1, -beta, -beta + 1, !cutnode);
@@ -459,23 +460,23 @@ namespace polaris::search
 			}
 		}
 
-		moveStack.quietsTried.clear();
+		ms.quietsTried.clear();
 
-		const auto prevMove = prevStack.currMove;
-		const auto prevPrevMove = ply > 1 ? data.stack[ply - 2].currMove : HistoryMove{};
+		const auto prevMove = prevMs.currMove;
+		const auto prevPrevMove = ply > 1 ? data.moveStack[ply - 2].currMove : HistoryMove{};
 
 		auto best = NullMove;
 		auto bestScore = -ScoreMax;
 
 		auto entryType = EntryType::Alpha;
-		MoveGenerator generator{pos, stack.killer, moveStack.moves,
+		MoveGenerator generator{pos, ss.killer, ms.moves,
 			hashMove, prevMove, prevPrevMove, &data.history};
 
 		u32 legalMoves = 0;
 
 		while (const auto move = generator.next())
 		{
-			if (move == stack.excluded)
+			if (move == ss.excluded)
 				continue;
 
 			const bool quietOrLosing = generator.stage() >= MovegenStage::Quiet;
@@ -488,7 +489,7 @@ namespace polaris::search
 				if (!inCheck
 					&& depth <= maxFpDepth()
 					&& alpha < ScoreWin
-					&& stack.eval + fpMargin() + std::max(0, depth - baseLmr) * fpScale() <= alpha)
+					&& ss.eval + fpMargin() + std::max(0, depth - baseLmr) * fpScale() <= alpha)
 					break;
 
 				// see pruning
@@ -507,27 +508,27 @@ namespace polaris::search
 			++data.search.nodes;
 			++legalMoves;
 
-			stack.currMove = {movingPiece, moveActualDst(move)};
+			ms.currMove = {movingPiece, moveActualDst(move)};
 
 			i32 extension{};
 
 			// singular extension
 			if (depth >= minSingularityDepth()
 				&& move == hashMove
-				&& !stack.excluded
+				&& !ss.excluded
 				&& entry.depth >= depth - singularityDepthMargin()
 				&& entry.type != EntryType::Alpha)
 			{
 				const auto singularityBeta = std::max(-ScoreMate, entry.score - singularityDepthScale() * depth);
 				const auto singularityDepth = (depth - 1) / 2;
 
-				data.stack[ply].excluded = move;
+				data.searchStack[ply].excluded = move;
 				pos.popMove();
 
 				const auto score = search(data, singularityDepth, ply, moveStackIdx + 1,
 					singularityBeta - 1, singularityBeta, cutnode);
 
-				data.stack[ply].excluded = NullMove;
+				data.searchStack[ply].excluded = NullMove;
 				pos.applyMoveUnchecked(move);
 
 				if (score < singularityBeta)
@@ -583,21 +584,21 @@ namespace polaris::search
 					{
 						if (quietOrLosing)
 						{
-							stack.killer = move;
+							ss.killer = move;
 
 							const auto adjustment = depth * depth + depth - 1;
 
 							auto *prevContEntry = prevMove ? &data.history.contEntry(prevMove) : nullptr;
 							auto *prevPrevContEntry = prevPrevMove ? &data.history.contEntry(prevPrevMove) : nullptr;
 
-							updateHistoryScore(data.history.entry(stack.currMove).score, adjustment);
+							updateHistoryScore(data.history.entry(ms.currMove).score, adjustment);
 
 							if (prevContEntry)
-								updateHistoryScore(prevContEntry->score(stack.currMove), adjustment);
+								updateHistoryScore(prevContEntry->score(ms.currMove), adjustment);
 							if (prevPrevContEntry)
-								updateHistoryScore(prevPrevContEntry->score(stack.currMove), adjustment);
+								updateHistoryScore(prevPrevContEntry->score(ms.currMove), adjustment);
 
-							for (const auto prevQuiet : moveStack.quietsTried)
+							for (const auto prevQuiet : ms.quietsTried)
 							{
 								updateHistoryScore(data.history.entry(prevQuiet).score,  -adjustment);
 
@@ -621,19 +622,19 @@ namespace polaris::search
 			}
 
 			if (quietOrLosing)
-				moveStack.quietsTried.push(stack.currMove);
+				ms.quietsTried.push(ms.currMove);
 		}
 
 		if (legalMoves == 0)
 		{
-			if (stack.excluded)
+			if (ss.excluded)
 				return alpha;
 			return inCheck ? (-ScoreMate + ply) : 0;
 		}
 
 		// increase depth for tt if in check
 		// honestly no idea why this gains
-		if (!stack.excluded)
+		if (!ss.excluded)
 			m_table.put(pos.key(), bestScore, best, inCheck ? depth + 1 : depth, entryType);
 
 		if (root && (!m_stop || !data.search.move))
@@ -664,7 +665,7 @@ namespace polaris::search
 
 		const auto us = pos.toMove();
 
-		auto &stack = data.stack[ply];
+		auto &stack = data.searchStack[ply];
 
 		++ply;
 
