@@ -523,7 +523,7 @@ namespace polaris::search
 				pos.popMove();
 
 				const auto score = search(data, singularityDepth, ply, moveStackIdx + 1,
-					-singularityBeta - 1, -singularityBeta, cutnode);
+					singularityBeta - 1, singularityBeta, cutnode);
 
 				data.stack[ply].excluded = NullMove;
 				pos.applyMoveUnchecked(move);
