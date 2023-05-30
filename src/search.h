@@ -100,7 +100,6 @@ namespace polaris::search
 		{
 			ScoredMoveList moves{};
 			StaticVector<HistoryMove, 64> quietsTried{};
-			HistoryMove currMove{};
 		};
 
 		struct ThreadData

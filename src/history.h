@@ -26,6 +26,7 @@
 
 #include "core.h"
 #include "move.h"
+#include "history_fwd.h"
 #include "position/position.h"
 
 namespace polaris
@@ -35,27 +36,6 @@ namespace polaris
 		score -= (score * std::abs(adjustment)) / 324;
 		score += adjustment * 32;
 	}
-
-	struct HistoryMove
-	{
-		Piece moving{Piece::None};
-		Square dst{Square::None};
-
-		[[nodiscard]] explicit constexpr operator bool() const
-		{
-			return moving != Piece::None;
-		}
-
-		[[nodiscard]] static inline HistoryMove from(const PositionBoards &boards, Move move)
-		{
-			return {boards.pieceAt(move.src()), moveActualDst(move)};
-		}
-
-		[[nodiscard]] static inline HistoryMove from(const Position &pos, Move move)
-		{
-			return from(pos.boards(), move);
-		}
-	};
 
 	struct HistoryEntry
 	{

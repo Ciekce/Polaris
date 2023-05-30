@@ -102,23 +102,23 @@ namespace polaris
 	Position::Position(bool init)
 	{
 		m_states.reserve(256);
-		m_hashes.reserve(512);
+		m_stateHistory.reserve(512);
 
 		if (init)
 			m_states.push_back({});
 	}
 
-	template <bool UpdateMaterial, bool StateHistory>
+	template <bool UpdateMaterial, bool SaveState>
 	void Position::applyMoveUnchecked(Move move, TTable *prefetchTt)
 	{
 		auto &prevState = currState();
 
 		prevState.lastMove = move;
 
-		if constexpr (StateHistory)
+		if constexpr (SaveState)
 			m_states.push_back(prevState);
 
-		m_hashes.push_back(prevState.key);
+		m_stateHistory.push_back({prevState.key, toHistoryMove(move)});
 
 		auto &state = currState();
 
@@ -138,7 +138,7 @@ namespace polaris
 #ifndef NDEBUG
 			if constexpr (VerifyAll)
 			{
-				if (!verify<UpdateMaterial, StateHistory>())
+				if (!verify<UpdateMaterial, SaveState>())
 				{
 					printHistory(move);
 					__builtin_trap();
@@ -255,7 +255,7 @@ namespace polaris
 #ifndef NDEBUG
 		if constexpr (VerifyAll)
 		{
-			if (!verify<UpdateMaterial, StateHistory>())
+			if (!verify<UpdateMaterial, SaveState>())
 			{
 				printHistory();
 				__builtin_trap();
@@ -269,7 +269,7 @@ namespace polaris
 		assert(m_states.size() > 1 && "popMove() with no previous move?");
 
 		m_states.pop_back();
-		m_hashes.pop_back();
+		m_stateHistory.pop_back();
 
 		m_blackToMove = !m_blackToMove;
 

@@ -384,7 +384,6 @@ namespace polaris::search
 		auto &ms = data.moveStack[moveStackIdx];
 
 		const auto &prevSs = data.searchStack[ply - 1];
-		const auto &prevMs = data.moveStack[ply - 1];
 
 		if (ply > data.search.seldepth)
 			data.search.seldepth = ply;
@@ -429,8 +428,6 @@ namespace polaris::search
 					: (entry.score != 0 ? entry.score : eval::staticEval(pos, &data.pawnCache));
 		}
 
-		ms.currMove = {};
-
 		const bool improving = !inCheck && ply > 1 && ss.eval > data.searchStack[ply - 2].eval;
 
 		if (!pv && !inCheck && !ss.excluded)
@@ -462,8 +459,8 @@ namespace polaris::search
 
 		ms.quietsTried.clear();
 
-		const auto prevMove = prevMs.currMove;
-		const auto prevPrevMove = ply > 1 ? data.moveStack[ply - 2].currMove : HistoryMove{};
+		const auto prevMove = pos.previousHistoryMove(0);
+		const auto prevPrevMove = pos.previousHistoryMove(1);
 
 		auto best = NullMove;
 		auto bestScore = -ScoreMax;
@@ -508,7 +505,7 @@ namespace polaris::search
 			++data.search.nodes;
 			++legalMoves;
 
-			ms.currMove = {movingPiece, moveActualDst(move)};
+			const HistoryMove currMove{movingPiece, moveActualDst(move)};
 
 			i32 extension{};
 
@@ -591,12 +588,12 @@ namespace polaris::search
 							auto *prevContEntry = prevMove ? &data.history.contEntry(prevMove) : nullptr;
 							auto *prevPrevContEntry = prevPrevMove ? &data.history.contEntry(prevPrevMove) : nullptr;
 
-							updateHistoryScore(data.history.entry(ms.currMove).score, adjustment);
+							updateHistoryScore(data.history.entry(currMove).score, adjustment);
 
 							if (prevContEntry)
-								updateHistoryScore(prevContEntry->score(ms.currMove), adjustment);
+								updateHistoryScore(prevContEntry->score(currMove), adjustment);
 							if (prevPrevContEntry)
-								updateHistoryScore(prevPrevContEntry->score(ms.currMove), adjustment);
+								updateHistoryScore(prevPrevContEntry->score(currMove), adjustment);
 
 							for (const auto prevQuiet : ms.quietsTried)
 							{
@@ -622,7 +619,7 @@ namespace polaris::search
 			}
 
 			if (quietOrLosing)
-				ms.quietsTried.push(ms.currMove);
+				ms.quietsTried.push(currMove);
 		}
 
 		if (legalMoves == 0)
