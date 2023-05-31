@@ -509,7 +509,6 @@ namespace polaris::search
 
 			i32 extension{};
 
-			/*
 			// singular extension
 			if (depth >= minSingularityDepth()
 				&& move == hashMove
@@ -532,7 +531,6 @@ namespace polaris::search
 				if (score < singularityBeta)
 					extension = 1;
 			}
-			 */
 
 			Score score{};
 
