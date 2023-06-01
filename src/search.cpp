@@ -453,7 +453,7 @@ namespace polaris::search
 				const auto score = -search(data, depth - R, ply + 1, moveStackIdx + 1, -beta, -beta + 1, !cutnode);
 
 				if (score >= beta)
-					return score > ScoreWin ? beta : score;
+					return beta;
 			}
 		}
 
