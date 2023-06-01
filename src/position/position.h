@@ -29,6 +29,7 @@
 #include "../move.h"
 #include "../attacks/attacks.h"
 #include "../ttable.h"
+#include "../history_fwd.h"
 
 namespace polaris
 {
@@ -72,6 +73,12 @@ namespace polaris
 
 	class Position;
 
+	struct StateHistory
+	{
+		u64 key{};
+		HistoryMove move{};
+	};
+
 	class HistoryGuard
 	{
 	public:
@@ -91,7 +98,7 @@ namespace polaris
 		Position(const Position &) = default;
 		Position(Position &&) = default;
 
-		template <bool UpdateMaterial = true, bool StateHistory = true>
+		template <bool UpdateMaterial = true, bool SaveState = true>
 		void applyMoveUnchecked(Move move, TTable *prefetchTt = nullptr);
 
 		template <bool UpdateMaterial = true>
@@ -283,9 +290,9 @@ namespace polaris
 
 			i32 repetitionsLeft = threefold ? 2 : 1;
 
-			for (i32 i = static_cast<i32>(m_hashes.size() - 1); i >= 0; --i)
+			for (i32 i = static_cast<i32>(m_stateHistory.size() - 1); i >= 0; --i)
 			{
-				if (m_hashes[i] == currKey
+				if (m_stateHistory[i].key == currKey
 					&& --repetitionsLeft == 0)
 					return true;
 			}
@@ -344,6 +351,13 @@ namespace polaris
 		[[nodiscard]] inline Move lastMove() const
 		{
 			return m_states.empty() ? NullMove : currState().lastMove;
+		}
+
+		[[nodiscard]] inline HistoryMove previousHistoryMove(u32 movesAgo) const
+		{
+			if (movesAgo >= m_stateHistory.size())
+				return {};
+			return m_stateHistory[m_stateHistory.size() - movesAgo - 1].move;
 		}
 
 		[[nodiscard]] inline Piece captureTarget(Move move) const
@@ -408,6 +422,11 @@ namespace polaris
 
 		[[nodiscard]] Move moveFromUci(const std::string &move) const;
 
+		[[nodiscard]] inline HistoryMove toHistoryMove(Move move) const
+		{
+			return {boards().pieceAt(move.src()), moveActualDst(move)};
+		}
+
 		Position &operator=(const Position &) = default;
 		Position &operator=(Position &&) = default;
 
@@ -442,7 +461,7 @@ namespace polaris
 		u32 m_fullmove{1};
 
 		std::vector<BoardState> m_states{};
-		std::vector<u64> m_hashes{};
+		std::vector<StateHistory> m_stateHistory{};
 	};
 
 	[[nodiscard]] Square squareFromString(const std::string &str);

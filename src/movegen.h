@@ -196,15 +196,13 @@ namespace polaris
 
 		inline void scoreQuiet()
 		{
-			const auto &boards = m_pos.boards();
-
 			for (i32 i = m_noisyEnd; i < m_moves.size(); ++i)
 			{
 				auto &move = m_moves[i];
 
 				if (m_history)
 				{
-					const auto historyMove = HistoryMove::from(boards, move.move);
+					const auto historyMove = m_pos.toHistoryMove(move.move);
 
 					move.score = m_history->entry(historyMove).score;
 
