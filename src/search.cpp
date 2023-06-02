@@ -562,6 +562,14 @@ namespace polaris::search
 				{
 					if (score >= beta)
 					{
+						if (quietOrLosing)
+						{
+							stack.killer = move;
+
+							if (prevMove)
+								data.history.entry(prevMove).countermove = move;
+						}
+
 						entryType = EntryType::Beta;
 						break;
 					}
@@ -606,17 +614,12 @@ namespace polaris::search
 
 			if (bestIsQuietOrLosing)
 			{
-				stack.killer = bestMove;
-
 				updateHistoryScore(data.history.entry(bestHistory).score, adjustment);
 
 				if (prevContEntry)
 					updateHistoryScore(prevContEntry->score(bestHistory), adjustment);
 				if (prevPrevContEntry)
 					updateHistoryScore(prevPrevContEntry->score(bestHistory), adjustment);
-
-				if (prevMove)
-					data.history.entry(prevMove).countermove = bestMove;
 			}
 		}
 
