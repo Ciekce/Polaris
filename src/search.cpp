@@ -457,13 +457,17 @@ namespace polaris::search
 			}
 		}
 
+		const auto oldAlpha = alpha;
+
 		moveStack.quietsTried.clear();
 
 		const auto prevMove = prevStack.currMove;
 		const auto prevPrevMove = ply > 1 ? data.stack[ply - 2].currMove : HistoryMove{};
 
-		auto best = NullMove;
+		auto bestMove = NullMove;
 		auto bestScore = -ScoreMax;
+
+		bool bestIsQuietOrLosing = false;
 
 		auto entryType = EntryType::Alpha;
 		MoveGenerator generator{pos, stack.killer, moveStack.moves,
@@ -549,43 +553,15 @@ namespace polaris::search
 
 			if (score > bestScore)
 			{
-				best = move;
+				bestMove = move;
 				bestScore = score;
+
+				bestIsQuietOrLosing = quietOrLosing;
 
 				if (score > alpha)
 				{
 					if (score >= beta)
 					{
-						if (quietOrLosing)
-						{
-							stack.killer = move;
-
-							const auto adjustment = depth * depth + depth - 1;
-
-							auto *prevContEntry = prevMove ? &data.history.contEntry(prevMove) : nullptr;
-							auto *prevPrevContEntry = prevPrevMove ? &data.history.contEntry(prevPrevMove) : nullptr;
-
-							updateHistoryScore(data.history.entry(stack.currMove).score, adjustment);
-
-							if (prevContEntry)
-								updateHistoryScore(prevContEntry->score(stack.currMove), adjustment);
-							if (prevPrevContEntry)
-								updateHistoryScore(prevPrevContEntry->score(stack.currMove), adjustment);
-
-							for (const auto prevQuiet : moveStack.quietsTried)
-							{
-								updateHistoryScore(data.history.entry(prevQuiet).score,  -adjustment);
-
-								if (prevContEntry)
-									updateHistoryScore(prevContEntry->score(prevQuiet), -adjustment);
-								if (prevPrevContEntry)
-									updateHistoryScore(prevPrevContEntry->score(prevQuiet), -adjustment);
-							}
-
-							if (prevMove)
-								data.history.entry(prevMove).countermove = move;
-						}
-
 						entryType = EntryType::Beta;
 						break;
 					}
@@ -606,13 +582,51 @@ namespace polaris::search
 			return inCheck ? (-ScoreMate + ply) : 0;
 		}
 
+		if (alpha > oldAlpha)
+		{
+			const auto adjustment = depth * depth + depth - 1;
+
+			const auto bestHistory = HistoryMove::from(boards, bestMove);
+
+			auto *prevContEntry = prevMove ? &data.history.contEntry(prevMove) : nullptr;
+			auto *prevPrevContEntry = prevPrevMove ? &data.history.contEntry(prevPrevMove) : nullptr;
+
+			for (const auto prevQuiet : moveStack.quietsTried)
+			{
+				if (prevQuiet == bestHistory)
+					continue;
+
+				updateHistoryScore(data.history.entry(prevQuiet).score,  -adjustment);
+
+				if (prevContEntry)
+					updateHistoryScore(prevContEntry->score(prevQuiet), -adjustment);
+				if (prevPrevContEntry)
+					updateHistoryScore(prevPrevContEntry->score(prevQuiet), -adjustment);
+			}
+
+			if (bestIsQuietOrLosing)
+			{
+				stack.killer = bestMove;
+
+				updateHistoryScore(data.history.entry(bestHistory).score, adjustment);
+
+				if (prevContEntry)
+					updateHistoryScore(prevContEntry->score(bestHistory), adjustment);
+				if (prevPrevContEntry)
+					updateHistoryScore(prevPrevContEntry->score(bestHistory), adjustment);
+
+				if (prevMove)
+					data.history.entry(prevMove).countermove = bestMove;
+			}
+		}
+
 		// increase depth for tt if in check
 		// honestly no idea why this gains
 		if (!stack.excluded)
-			m_table.put(pos.key(), bestScore, best, inCheck ? depth + 1 : depth, entryType);
+			m_table.put(pos.key(), bestScore, bestMove, inCheck ? depth + 1 : depth, entryType);
 
 		if (root && (!m_stop || !data.search.move))
-			data.search.move = best;
+			data.search.move = bestMove;
 
 		return bestScore;
 	}

@@ -46,6 +46,8 @@ namespace polaris
 			return moving != Piece::None;
 		}
 
+		[[nodiscard]] constexpr bool operator==(const HistoryMove &) const = default;
+
 		[[nodiscard]] static inline HistoryMove from(const PositionBoards &boards, Move move)
 		{
 			return {boards.pieceAt(move.src()), moveActualDst(move)};
