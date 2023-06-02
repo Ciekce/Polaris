@@ -457,8 +457,8 @@ namespace polaris::search
 
 		ms.quietsTried.clear();
 
-		const auto prevMove = pos.previousHistoryMove(0);
-		const auto prevPrevMove = pos.previousHistoryMove(1);
+		const auto prevMove = pos.previousHistoryMove(1);
+		const auto prevPrevMove = pos.previousHistoryMove(2);
 
 		auto best = NullMove;
 		auto bestScore = -ScoreMax;
