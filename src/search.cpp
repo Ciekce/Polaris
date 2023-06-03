@@ -457,12 +457,14 @@ namespace polaris::search
 			}
 		}
 
+		const auto oldAlpha = alpha;
+
 		moveStack.quietsTried.clear();
 
 		const auto prevMove = prevStack.currMove;
 		const auto prevPrevMove = ply > 1 ? data.stack[ply - 2].currMove : HistoryMove{};
 
-		auto best = NullMove;
+		auto bestMove = NullMove;
 		auto bestScore = -ScoreMax;
 
 		auto entryType = EntryType::Alpha;
@@ -549,7 +551,7 @@ namespace polaris::search
 
 			if (score > bestScore)
 			{
-				best = move;
+				bestMove = move;
 				bestScore = score;
 
 				if (score > alpha)
@@ -606,13 +608,17 @@ namespace polaris::search
 			return inCheck ? (-ScoreMate + ply) : 0;
 		}
 
-		// increase depth for tt if in check
-		// honestly no idea why this gains
 		if (!stack.excluded)
-			m_table.put(pos.key(), bestScore, best, inCheck ? depth + 1 : depth, entryType);
+		{
+			const auto ttBestMove = alpha > oldAlpha ? bestMove : NullMove;
+
+			// increase depth for tt if in check
+			// honestly no idea why this gains
+			m_table.put(pos.key(), bestScore, ttBestMove, inCheck ? depth + 1 : depth, entryType);
+		}
 
 		if (root && (!m_stop || !data.search.move))
-			data.search.move = best;
+			data.search.move = bestMove;
 
 		return bestScore;
 	}

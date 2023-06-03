@@ -131,7 +131,7 @@ namespace polaris
 
 		entry.key = entryKey;
 		entry.score = static_cast<i16>(score);
-		entry.move = move;
+		entry.move = move ?: entry.move;
 		entry.depth = depth;
 		entry.type = type;
 
