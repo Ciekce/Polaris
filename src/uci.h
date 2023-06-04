@@ -28,7 +28,11 @@
 
 namespace polaris::uci
 {
+	constexpr Score NormalizationK = 91;
+
 	i32 run();
+
+	[[nodiscard]] i32 winRateModel(Score povScore, u16 ply);
 
 	[[nodiscard]] std::string moveToString(Move move);
 

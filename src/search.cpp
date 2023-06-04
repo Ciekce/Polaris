@@ -719,12 +719,24 @@ namespace polaris::search
 				std::cout << "mate " << ((ScoreMate - score + 1) / 2);
 			else std::cout << "mate " << (-(ScoreMate + score) / 2);
 		}
-		else std::cout << "cp " << score;
+		else
+		{
+			// adjust score to 100cp == 50% probability
+			const auto norm_score = score * uci::NormalizationK / 100;
+			std::cout << "cp " << norm_score;
+		}
 
 		if (score == alpha)
 			std::cout << " upperbound";
 		else if (score == beta)
 			std::cout << " lowerbound";
+
+		// wdl display
+		const auto ply_from_startpos = data.pos.fullmove() * 2 - (data.pos.toMove() == Color::White) - 1;
+		const auto wdl_w = uci::winRateModel(score, ply_from_startpos);
+		const auto wdl_l = uci::winRateModel(-score, ply_from_startpos);
+		const auto wdl_d = 1000 - wdl_w - wdl_l;
+		std::cout << " wdl " << wdl_w << " " << wdl_d << " " << wdl_l;
 
 		std::cout << " hashfull " << m_table.full() << " pv " << uci::moveToString(move);
 

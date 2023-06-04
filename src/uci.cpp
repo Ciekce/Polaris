@@ -788,6 +788,22 @@ namespace polaris
 			return handler.run();
 		}
 
+		i32 winRateModel(Score povScore, u16 ply)
+		{
+			constexpr f64 as[] = { -16.47359643,  125.09292680, -150.78265049,  133.46169058 };
+			constexpr f64 bs[] = { -10.64392182,   68.80469735,  -98.63536151,  100.12391368 };
+
+			static_assert(uci::NormalizationK == static_cast<i32>(as[0] + as[1] + as[2] + as[3]));
+
+			const f64 m = std::min(240.0, static_cast<f64>(ply)) / 64.0;
+			const f64 a = (((as[0] * m + as[1]) * m + as[2]) * m) + as[3];
+			const f64 b = (((bs[0] * m + bs[1]) * m + bs[2]) * m) + bs[3];
+
+			const f64 x = std::clamp(static_cast<f64>(povScore), -4000.0, 4000.0);
+
+			return static_cast<i32>(0.5 + 1000.0 / (1 + std::exp((a - x) / b)));
+		}
+
 		std::string moveToString(Move move)
 		{
 			if (!move)
