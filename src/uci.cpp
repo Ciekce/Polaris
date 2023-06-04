@@ -792,10 +792,10 @@ namespace polaris
 		i32 winRateModel(Score povScore, u32 ply)
 		{
 			constexpr auto As = std::array { 
-				-16.47359643,  125.09292680, -150.78265049,  133.46169058
+				-16.47359643, 125.09292680, -150.78265049, 133.46169058
 			};
 			constexpr auto Bs = std::array { 
-				-10.64392182,   68.80469735,  -98.63536151,  100.12391368
+				-10.64392182, 68.80469735, -98.63536151, 100.12391368
 			};
 
 			static_assert(uci::NormalizationK == static_cast<i32>(std::reduce(As.begin(), As.end())));
