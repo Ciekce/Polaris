@@ -722,8 +722,8 @@ namespace polaris::search
 		else
 		{
 			// adjust score to 100cp == 50% probability
-			const auto norm_score = score * uci::NormalizationK / 100;
-			std::cout << "cp " << norm_score;
+			const auto normScore = score * uci::NormalizationK / 100;
+			std::cout << "cp " << normScore;
 		}
 
 		if (score == alpha)

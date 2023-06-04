@@ -32,7 +32,7 @@ namespace polaris::uci
 
 	i32 run();
 
-	[[nodiscard]] i32 winRateModel(Score povScore, u16 ply);
+	[[nodiscard]] i32 winRateModel(Score povScore, u32 ply);
 
 	[[nodiscard]] std::string moveToString(Move move);
 
