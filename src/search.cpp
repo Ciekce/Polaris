@@ -732,11 +732,11 @@ namespace polaris::search
 			std::cout << " lowerbound";
 
 		// wdl display
-		const auto ply_from_startpos = data.pos.fullmove() * 2 - (data.pos.toMove() == Color::White) - 1;
-		const auto wdl_w = uci::winRateModel(score, ply_from_startpos);
-		const auto wdl_l = uci::winRateModel(-score, ply_from_startpos);
-		const auto wdl_d = 1000 - wdl_w - wdl_l;
-		std::cout << " wdl " << wdl_w << " " << wdl_d << " " << wdl_l;
+		const auto plyFromStartpos = data.pos.fullmove() * 2 - (data.pos.toMove() == Color::White ? 1 : 0) - 1;
+		const auto wdlWin  = uci::winRateModel( score, plyFromStartpos);
+		const auto wdlLoss = uci::winRateModel(-score, plyFromStartpos);
+		const auto wdlDraw = 1000 - wdlWin - wdlLoss;
+		std::cout << " wdl " << wdlWin << " " << wdlDraw << " " << wdlLoss;
 
 		std::cout << " hashfull " << m_table.full() << " pv " << uci::moveToString(move);
 
