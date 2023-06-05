@@ -24,6 +24,7 @@
 #include "../pretty.h"
 #include "../attacks/attacks.h"
 #include "../rays.h"
+#include "../see.h"
 
 namespace polaris::eval
 {
@@ -153,6 +154,29 @@ namespace polaris::eval
 
 		template <Color Us>
 		constexpr auto PawnHelperMasks = generatePawnHelperMasks<Us>();
+
+		inline Score scaleEval(const Position &pos, Score score)
+		{
+			const auto &boards = pos.boards();
+
+			// scale by material
+			Score totalSee{};
+
+			totalSee += see::values::Knight * boards.knights().popcount();
+			totalSee += see::values::Bishop * boards.bishops().popcount();
+			totalSee += see::values::Rook   * boards.  rooks().popcount();
+			totalSee += see::values::Queen  * boards. queens().popcount();
+
+			score = (score * (27648 + totalSee)) / 32768;
+
+			// scale by distance to 50mr draw
+			score = (score * (200 - pos.halfmove())) / 200;
+
+			if (pos.isLikelyDrawn())
+				score /= 8;
+
+			return score;
+		}
 
 		class Evaluator
 		{
@@ -321,10 +345,7 @@ namespace polaris::eval
 
 			m_final = pos.interpScore(m_total);
 
-			m_final = (m_final * (200 - pos.halfmove())) / 200;
-
-			if (pos.isLikelyDrawn())
-				m_final /= 8;
+			m_final = scaleEval(pos, m_final);
 		}
 
 		void Evaluator::printEval() const
