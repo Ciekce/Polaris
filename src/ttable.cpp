@@ -66,24 +66,10 @@ namespace polaris
 
 			if (entry.depth > depth)
 			{
-				switch (entry.type)
-				{
-				case EntryType::Alpha:
-					if (entry.score <= alpha)
-						dst.score = alpha;
-					else return false;
-					break;
-				case EntryType::Beta:
-					if (entry.score >= beta)
-						dst.score = beta;
-					else return false;
-					break;
-				default: // exact
-					dst.score = static_cast<i32>(entry.score);
-					break;
-				}
-
-				return true;
+				dst.score = entry.score;
+				return entry.type == EntryType::Exact
+					|| entry.type == EntryType::Alpha && entry.score <= alpha
+					|| entry.type == EntryType::Beta  && entry.score >= beta;
 			}
 		}
 		else dst.type = EntryType::None;
