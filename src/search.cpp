@@ -249,7 +249,7 @@ namespace polaris::search
 
 			if (depth < minAspDepth())
 			{
-				const auto newScore = search(data, depth, 1, 0, -ScoreMax, ScoreMax, false);
+				const auto newScore = search(data, depth, 1, 0, -ScoreMax, ScoreMax);
 
 				depthCompleted = depth;
 
@@ -272,7 +272,7 @@ namespace polaris::search
 				{
 					aspDepth = std::max(aspDepth, depth - maxAspReduction());
 
-					const auto newScore = search(data, aspDepth, 1, 0, alpha, beta, false);
+					const auto newScore = search(data, aspDepth, 1, 0, alpha, beta);
 
 					const bool stop = m_stop.load(std::memory_order::relaxed);
 					if (stop || !searchData.move)
@@ -362,7 +362,7 @@ namespace polaris::search
 	}
 
 	Score Searcher::search(ThreadData &data, i32 depth,
-		i32 ply, u32 moveStackIdx, Score alpha, Score beta, bool cutnode)
+		i32 ply, u32 moveStackIdx, Score alpha, Score beta)
 	{
 		if (depth > 1 && shouldStop(data.search, false))
 			return beta;
@@ -415,14 +415,6 @@ namespace polaris::search
 				return entry.score;
 			else if (entry.move && pos.isPseudolegal(entry.move))
 				hashMove = entry.move;
-
-			// internal iterative reduction
-			if (!inCheck
-				&& depth >= minIirDepth()
-				&& !stack.excluded
-				&& !hashMove
-				&& (pv || cutnode))
-				--depth;
 		}
 
 		const bool ttHit = entry.type != EntryType::None;
@@ -458,7 +450,7 @@ namespace polaris::search
 						+ std::min((stack.eval - beta) / nmpReductionEvalScale(), maxNmpEvalReduction()));
 
 				const auto guard = pos.applyMove(NullMove, &m_table);
-				const auto score = -search(data, depth - R, ply + 1, moveStackIdx + 1, -beta, -beta + 1, !cutnode);
+				const auto score = -search(data, depth - R, ply + 1, moveStackIdx + 1, -beta, -beta + 1);
 
 				if (score >= beta)
 					return score > ScoreWin ? beta : score;
@@ -542,16 +534,16 @@ namespace polaris::search
 				const auto newDepth = depth - 1 + extension;
 
 				if (pv && legalMoves == 1)
-					score = -search(data, newDepth - reduction, ply + 1, moveStackIdx + 1, -beta, -alpha, false);
+					score = -search(data, newDepth - reduction, ply + 1, moveStackIdx + 1, -beta, -alpha);
 				else
 				{
-					score = -search(data, newDepth - reduction, ply + 1, moveStackIdx + 1, -alpha - 1, -alpha, true);
+					score = -search(data, newDepth - reduction, ply + 1, moveStackIdx + 1, -alpha - 1, -alpha);
 
 					if (score > alpha && reduction > 0)
-						score = -search(data, newDepth, ply + 1, moveStackIdx + 1, -alpha - 1, -alpha, !cutnode);
+						score = -search(data, newDepth, ply + 1, moveStackIdx + 1, -alpha - 1, -alpha);
 
 					if (score > alpha && score < beta)
-						score = -search(data, newDepth, ply + 1, moveStackIdx + 1, -beta, -alpha, false);
+						score = -search(data, newDepth, ply + 1, moveStackIdx + 1, -beta, -alpha);
 				}
 			}
 
