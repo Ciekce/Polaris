@@ -539,9 +539,6 @@ namespace polaris::search
 				{
 					score = -search(data, newDepth - reduction, ply + 1, moveStackIdx + 1, -alpha - 1, -alpha);
 
-					if (score > alpha && reduction > 0)
-						score = -search(data, newDepth, ply + 1, moveStackIdx + 1, -alpha - 1, -alpha);
-
 					if (score > alpha && score < beta)
 						score = -search(data, newDepth, ply + 1, moveStackIdx + 1, -beta, -alpha);
 				}
