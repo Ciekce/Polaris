@@ -30,7 +30,7 @@ namespace polaris::tunable
 
 		constexpr i32 MaxAspReduction = 3;
 
-		constexpr Score InitialAspWindow = 10;
+		constexpr Score InitialAspWindow = 8;
 		constexpr Score MaxAspWindow = 500;
 
 		constexpr i32 MinNmpDepth = 3;
