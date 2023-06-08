@@ -612,10 +612,8 @@ namespace polaris::search
 			return inCheck ? (-ScoreMate + ply) : 0;
 		}
 
-		// increase depth for tt if in check
-		// honestly no idea why this gains
 		if (!stack.excluded)
-			m_table.put(pos.key(), bestScore, best, inCheck ? depth + 1 : depth, entryType);
+			m_table.put(pos.key(), bestScore, best, depth, entryType);
 
 		if (root && (!m_stop || !data.search.move))
 			data.search.move = best;
