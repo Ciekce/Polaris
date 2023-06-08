@@ -534,6 +534,9 @@ namespace polaris::search
 					if (!pv)
 						++lmr;
 
+					if (generator.stage() < MovegenStage::Quiet)
+						--lmr;
+
 					reduction = std::clamp(lmr, 0, depth - 2);
 				}
 
