@@ -66,6 +66,8 @@ namespace polaris
 
 			if (entry.depth >= depth)
 			{
+				dst.score = static_cast<i32>(entry.score);
+
 				switch (entry.type)
 				{
 				case EntryType::Alpha:
@@ -78,9 +80,7 @@ namespace polaris
 						dst.score = beta;
 					else return false;
 					break;
-				default: // exact
-					dst.score = static_cast<i32>(entry.score);
-					break;
+				default: break;
 				}
 
 				return true;
