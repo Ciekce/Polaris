@@ -534,6 +534,9 @@ namespace polaris::search
 					if (!pv)
 						++lmr;
 
+					if (improving)
+						++lmr;
+
 					reduction = std::clamp(lmr, 0, depth - 2);
 				}
 
