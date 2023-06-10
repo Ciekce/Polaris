@@ -430,7 +430,7 @@ namespace polaris::search
 		else if (stack.excluded)
 			stack.eval = data.stack[ply - 1].eval; // not prevStack
 		else stack.eval = inCheck ? 0
-				: (entry.score != 0 ? entry.score : eval::staticEval(pos, &data.pawnCache));
+				: (ttHit ? entry.score : eval::staticEval(pos, &data.pawnCache));
 
 		stack.currMove = {};
 
