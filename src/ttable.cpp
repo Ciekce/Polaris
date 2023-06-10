@@ -64,25 +64,12 @@ namespace polaris
 			dst.move = entry.move;
 			dst.type = entry.type;
 
-			if (entry.depth >= depth)
+			if (entry.depth >= depth
+				&& (entry.type == EntryType::Exact
+					|| entry.type == EntryType::Alpha && entry.score <= alpha
+					|| entry.type == EntryType::Beta  && entry.score >= beta))
 			{
-				switch (entry.type)
-				{
-				case EntryType::Alpha:
-					if (entry.score <= alpha)
-						dst.score = alpha;
-					else return false;
-					break;
-				case EntryType::Beta:
-					if (entry.score >= beta)
-						dst.score = beta;
-					else return false;
-					break;
-				default: // exact
-					dst.score = static_cast<i32>(entry.score);
-					break;
-				}
-
+				dst.score = entry.score;
 				return true;
 			}
 		}
