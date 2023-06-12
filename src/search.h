@@ -52,6 +52,9 @@ namespace polaris::search
 	constexpr u32 DefaultThreadCount = 1;
 	constexpr auto ThreadCountRange = util::Range<u32>{1,  2048};
 
+	constexpr auto SyzygyProbeDepthRange = util::Range<i32>{1, MaxDepth};
+	constexpr auto SyzygyProbeLimitRange = util::Range<i32>{0, 7};
+
 	class Searcher final
 	{
 	public:
@@ -126,7 +129,7 @@ namespace polaris::search
 
 			HistoryTable history{};
 
-			Position pos{false};
+			Position pos{};
 		};
 
 		TTable m_table{};
@@ -166,6 +169,7 @@ namespace polaris::search
 		Score search(ThreadData &data, i32 depth, i32 ply, u32 moveStackIdx, Score alpha, Score beta, bool cutnode);
 		Score qsearch(ThreadData &data, i32 ply, u32 moveStackIdx, Score alpha, Score beta);
 
-		void report(const ThreadData &data, i32 depth, Move move, f64 time, Score score, Score alpha, Score beta);
+		void report(const ThreadData &data, i32 depth, Move move,
+			f64 time, Score score, Score alpha, Score beta, bool tb = false);
 	};
 }
