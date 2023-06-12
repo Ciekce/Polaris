@@ -491,12 +491,14 @@ namespace polaris::search
 		auto syzygyMin = -ScoreMate;
 		auto syzygyMax =  ScoreMate;
 
+		const auto syzygyPieceLimit = std::min(g_opts.syzygyProbeLimit, static_cast<i32>(TB_LARGEST));
+
 		// probe syzygy tb
 		if (!root
 			&& !stack.excluded
 			&& g_opts.syzygyEnabled
-			&& pieceCount <= TB_LARGEST
-			&& (pieceCount < TB_LARGEST || depth >= g_opts.syzygyProbeDepth)
+			&& pieceCount <= syzygyPieceLimit
+			&& (pieceCount < syzygyPieceLimit || depth >= g_opts.syzygyProbeDepth)
 			&& pos.halfmove() == 0
 			&& pos.castlingRooks() == CastlingRooks{})
 		{
