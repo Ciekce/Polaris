@@ -107,6 +107,9 @@ namespace polaris
 
 		UciHandler::~UciHandler()
 		{
+			// can't do this in a destructor, because it will run after tb_free is called
+			m_searcher.quit();
+
 			if (m_fathomInitialized)
 				tb_free();
 		}

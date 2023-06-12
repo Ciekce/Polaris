@@ -79,12 +79,6 @@ namespace polaris::search
 		}};
 	}
 
-	Searcher::~Searcher()
-	{
-		stop();
-		stopThreads();
-	}
-
 	void Searcher::newGame()
 	{
 		m_table.clear();

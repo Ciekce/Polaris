@@ -151,6 +151,6 @@
  *       nothing.  Etc.
  * NOTE: This definition must not include en passant captures.
  */
-#define TB_PAWN_ATTACKS(square, color) (polaris::attacks::getPawnAttacks(static_cast<polaris::Square>(square), static_cast<polaris::Color>(!color)))
+#define TB_PAWN_ATTACKS(square, color) (polaris::attacks::getPawnAttacks(static_cast<polaris::Square>(square), static_cast<polaris::Color>(color)))
 
 #endif

@@ -59,7 +59,7 @@ namespace polaris::search
 	{
 	public:
 		explicit Searcher(std::optional<usize> hashSize = {});
-		~Searcher();
+		~Searcher() = default;
 
 		void newGame();
 
@@ -84,6 +84,12 @@ namespace polaris::search
 		inline void setHashSize(usize size)
 		{
 			m_table.resize(size);
+		}
+
+		inline void quit()
+		{
+			stop();
+			stopThreads();
 		}
 
 	private:
