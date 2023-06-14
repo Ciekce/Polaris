@@ -190,7 +190,7 @@ namespace polaris
 						dstValue = static_cast<i32>(basePiece(piece));
 				}
 
-				move.score = dstValue * 10 - srcValue;
+				move.score = (dstValue - srcValue) * 10 + dstValue;
 
 				if (move.move.type() == MoveType::Promotion)
 					move.score += PromoScores[move.move.targetIdx()] * 2000;
