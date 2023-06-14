@@ -22,7 +22,6 @@
 
 #include "move.h"
 #include "position/position.h"
-#include "eval/material.h"
 #include "see.h"
 #include "history.h"
 
@@ -178,19 +177,26 @@ namespace polaris
 			{
 				auto &move = m_moves[i];
 
-				const auto srcValue = eval::pieceValue(boards.pieceAt(move.move.src())).midgame();
-				// 0 for non-capture promo
-				const auto dstValue = move.move.type() == MoveType::EnPassant
-					? eval::values::Pawn.midgame()
-					: eval::pieceValue(boards.pieceAt(move.move.dst())).midgame();
+				const auto srcValue = static_cast<i32>(basePiece(boards.pieceAt(move.move.src())));
 
-				move.score = (dstValue - srcValue) * 2000 + dstValue;
+				i32 dstValue{};
+
+				if (move.move.type() == MoveType::EnPassant)
+					dstValue = static_cast<i32>(BasePiece::Pawn);
+				else
+				{
+					const auto piece = boards.pieceAt(move.move.dst());
+					if (piece != Piece::None)
+						dstValue = static_cast<i32>(basePiece(piece));
+				}
+
+				move.score = dstValue * 10 - srcValue;
 
 				if (move.move.type() == MoveType::Promotion)
-					move.score += PromoScores[move.move.targetIdx()] * 2000 * 2000;
+					move.score += PromoScores[move.move.targetIdx()] * 2000;
 
 				if (dstValue > 0 && !see::see(m_pos, move.move))
-					move.score -= 8 * 2000 * 2000;
+					move.score -= 8 * 2000;
 			}
 		}
 
@@ -235,7 +241,7 @@ namespace polaris
 
 			m_goodNoisyEnd = std::find_if(m_moves.begin() + m_idx, m_moves.end(), [](const auto &v)
 			{
-				return v.score < -4 * 2000 * 2000;
+				return v.score < -4 * 2000;
 			}) - m_moves.begin();
 		}
 
