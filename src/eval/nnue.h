@@ -33,7 +33,7 @@
 namespace polaris::eval::nnue
 {
 	constexpr usize InputSize = 768;
-	constexpr usize Layer1Size = 1024;
+	constexpr usize Layer1Size = 768;
 
 	constexpr Score CReluMin = 0;
 	constexpr Score CReluMax = 255;
