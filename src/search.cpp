@@ -790,7 +790,7 @@ namespace polaris::search
 		ProbedTTableEntry entry{};
 		auto hashMove = NullMove;
 
-		if (m_table.probe(entry, pos.key(), 0, ply, alpha, beta) && pv)
+		if (m_table.probe(entry, pos.key(), 0, ply, alpha, beta) && !pv)
 			return entry.score;
 		else if (entry.move && pos.isPseudolegal(entry.move))
 			hashMove = entry.move;
