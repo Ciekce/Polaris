@@ -780,6 +780,8 @@ namespace polaris::search
 
 		const auto us = pos.toMove();
 
+		const bool pv = beta - alpha > 1;
+
 		auto &stack = data.stack[ply];
 
 		if (ply + 1 > data.search.seldepth)
@@ -788,7 +790,7 @@ namespace polaris::search
 		ProbedTTableEntry entry{};
 		auto hashMove = NullMove;
 
-		if (m_table.probe(entry, pos.key(), 0, ply, alpha, beta))
+		if (m_table.probe(entry, pos.key(), 0, ply, alpha, beta) && pv)
 			return entry.score;
 		else if (entry.move && pos.isPseudolegal(entry.move))
 			hashMove = entry.move;
