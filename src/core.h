@@ -24,6 +24,7 @@
 #include <utility>
 #include <algorithm>
 #include <cassert>
+#include <cstring>
 
 #include "util/bitfield.h"
 #include "util/cemath.h"
@@ -60,14 +61,14 @@ namespace polaris
 
 	enum class Color : i8
 	{
-		None = 0,
-		Black = -1,
-		White = 1
+		Black = 0,
+		White,
+		None
 	};
 
 	[[nodiscard]] constexpr auto oppColor(Color color)
 	{
-		return static_cast<Color>(-static_cast<i32>(color));
+		return static_cast<Color>(!static_cast<i32>(color));
 	}
 
 	[[nodiscard]] constexpr auto colorPiece(BasePiece piece, Color color)
@@ -75,7 +76,7 @@ namespace polaris
 		assert(piece != BasePiece::None);
 		assert(color != Color::None);
 
-		return static_cast<Piece>((static_cast<i32>(piece) << 1) + (color == Color::White ? 1 : 0));
+		return static_cast<Piece>((static_cast<i32>(piece) << 1) + static_cast<i32>(color));
 	}
 
 	[[nodiscard]] constexpr auto basePiece(Piece piece)
@@ -87,13 +88,21 @@ namespace polaris
 	[[nodiscard]] constexpr auto pieceColor(Piece piece)
 	{
 		assert(piece != Piece::None);
-		return (static_cast<i32>(piece) % 2 == 0) ? Color::Black : Color::White;
+		return static_cast<Color>(static_cast<i32>(piece) & 1);
 	}
 
 	[[nodiscard]] constexpr auto flipPieceColor(Piece piece)
 	{
 		assert(piece != Piece::None);
 		return static_cast<Piece>(static_cast<i32>(piece) ^ 0x1);
+	}
+
+	[[nodiscard]] constexpr auto copyPieceColor(Piece piece, BasePiece target)
+	{
+		assert(piece != Piece::None);
+		assert(target != BasePiece::None);
+
+		return colorPiece(target, pieceColor(piece));
 	}
 
 	[[nodiscard]] constexpr auto pieceFromChar(char c)
@@ -195,16 +204,6 @@ namespace polaris
 		return static_cast<i32>(square) & 0x7;
 	}
 
-	[[nodiscard]] constexpr auto squareRank(i32 square)
-	{
-		return square >> 3;
-	}
-
-	[[nodiscard]] constexpr auto squareFile(i32 square)
-	{
-		return square & 0x7;
-	}
-
 	[[nodiscard]] constexpr auto squareBit(Square square)
 	{
 		return U64(1) << static_cast<i32>(square);
@@ -254,118 +253,86 @@ namespace polaris
 
 	using Score = i32;
 
-	constexpr auto colorScore(Color color)
+	class TaperedScore
 	{
-		return static_cast<Score>(color);
-	}
+	public:
+		constexpr TaperedScore() : m_score{} {}
 
-	struct TaperedScore
-	{
-		Score midgame;
-		Score endgame;
-
-		inline TaperedScore operator+(const TaperedScore &other) const
+		constexpr TaperedScore(Score midgame, Score endgame)
+			: m_score{static_cast<i32>(static_cast<u32>(endgame) << 16) + midgame}
 		{
-			return {midgame + other.midgame,
-				endgame + other.endgame};
+			assert(std::numeric_limits<i16>::min() <= midgame && std::numeric_limits<i16>::max() >= midgame);
+			assert(std::numeric_limits<i16>::min() <= endgame && std::numeric_limits<i16>::max() >= endgame);
 		}
 
-		inline TaperedScore operator+(Score other) const
+		[[nodiscard]] inline Score midgame() const
 		{
-			return {midgame + other,
-				endgame + other};
+			const auto mg = static_cast<u16>(m_score);
+
+			i16 v{};
+			std::memcpy(&v, &mg, sizeof(mg));
+
+			return static_cast<Score>(v);
 		}
 
-		inline TaperedScore &operator+=(const TaperedScore &other)
+		[[nodiscard]] inline Score endgame() const
 		{
-			midgame += other.midgame;
-			endgame += other.endgame;
+			const auto eg = static_cast<u16>(static_cast<u32>(m_score + 0x8000) >> 16);
 
+			i16 v{};
+			std::memcpy(&v, &eg, sizeof(eg));
+
+			return static_cast<Score>(v);
+		}
+
+		[[nodiscard]] constexpr TaperedScore operator+(const TaperedScore &other) const
+		{
+			return TaperedScore{m_score + other.m_score};
+		}
+
+		constexpr TaperedScore &operator+=(const TaperedScore &other)
+		{
+			m_score += other.m_score;
 			return *this;
 		}
 
-		inline TaperedScore &operator+=(Score other)
+		[[nodiscard]] constexpr TaperedScore operator-(const TaperedScore &other) const
 		{
-			midgame += other;
-			endgame += other;
+			return TaperedScore{m_score - other.m_score};
+		}
 
+		constexpr TaperedScore &operator-=(const TaperedScore &other)
+		{
+			m_score -= other.m_score;
 			return *this;
 		}
 
-		inline TaperedScore operator-(const TaperedScore &other) const
+		[[nodiscard]] constexpr TaperedScore operator*(i32 v) const
 		{
-			return {midgame - other.midgame,
-				endgame - other.endgame};
+			return TaperedScore{m_score * v};
 		}
 
-		inline TaperedScore operator-(Score other) const
+		constexpr TaperedScore &operator*=(i32 v)
 		{
-			return {midgame - other,
-				endgame - other};
-		}
-
-		inline TaperedScore &operator-=(const TaperedScore &other)
-		{
-			midgame -= other.midgame;
-			endgame -= other.endgame;
-
+			m_score *= v;
 			return *this;
 		}
 
-		inline TaperedScore &operator-=(Score other)
+		[[nodiscard]] constexpr TaperedScore operator-() const
 		{
-			midgame -= other;
-			endgame -= other;
-
-			return *this;
+			return TaperedScore{-m_score};
 		}
 
-		inline TaperedScore operator*(Score other) const
-		{
-			return {midgame * other,
-				endgame * other};
-		}
+		[[nodiscard]] constexpr bool operator==(const TaperedScore &other) const = default;
 
-		inline TaperedScore &operator*=(Score other)
-		{
-			midgame *= other;
-			endgame *= other;
+	private:
+		explicit constexpr TaperedScore(i32 score) : m_score{score} {}
 
-			return *this;
-		}
-
-		inline TaperedScore operator-() const
-		{
-			return {-midgame, -endgame};
-		}
-
-		[[nodiscard]] inline bool operator==(const TaperedScore &other) const
-		{
-			return midgame == other.midgame && endgame == other.endgame;
-		}
-
-		[[nodiscard]] TaperedScore colored(Color color) const
-		{
-			return color == Color::White ? *this : -*this;
-		}
+		i32 m_score;
 	};
-
-	inline TaperedScore operator+(Score lhs, const TaperedScore &rhs)
-	{
-		return {rhs.midgame + lhs, rhs.endgame + lhs};
-	}
-
-	inline TaperedScore operator-(Score lhs, const TaperedScore &rhs)
-	{
-		return {rhs.midgame - lhs, rhs.endgame - lhs};
-	}
-
-	inline TaperedScore operator*(Score lhs, const TaperedScore &rhs)
-	{
-		return {rhs.midgame * lhs, rhs.endgame * lhs};
-	}
 
 	constexpr auto ScoreMax = 32767;
 	constexpr auto ScoreMate = 32766;
+	constexpr auto ScoreTbWin = 30000;
 	constexpr auto ScoreWin = 25000;
 }

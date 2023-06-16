@@ -35,7 +35,8 @@ namespace polaris
 
 	enum class EntryType : u8
 	{
-		Alpha = 0,
+		None = 0,
+		Alpha,
 		Beta,
 		Exact
 	};
@@ -46,7 +47,11 @@ namespace polaris
 		i16 score;
 		Move move;
 		u8 depth;
-		EntryType type;
+		struct
+		{
+			u8 age : 6;
+			EntryType type : 2;
+		};
 	};
 
 	static_assert(sizeof(TTableEntry) == 8);
@@ -67,10 +72,10 @@ namespace polaris
 
 		void resize(usize size);
 
-		bool probe(ProbedTTableEntry &dst, u64 key, i32 depth, Score alpha, Score beta) const;
-		[[nodiscard]] Move probeMove(u64 key) const;
+		bool probe(ProbedTTableEntry &dst, u64 key, i32 depth, i32 ply, Score alpha, Score beta) const;
+		[[nodiscard]] Move probePvMove(u64 key) const;
 
-		void put(u64 key, Score score, Move move, i32 depth, EntryType type);
+		void put(u64 key, Score score, Move move, i32 depth, i32 ply, EntryType type);
 
 		void clear();
 
@@ -82,6 +87,11 @@ namespace polaris
 				return;
 
 			__builtin_prefetch(&m_table[key & m_mask]);
+		}
+
+		inline void age()
+		{
+			m_currentAge = (m_currentAge + 1) % 64;
 		}
 
 	private:
@@ -111,5 +121,7 @@ namespace polaris
 		std::vector<i64> m_table{};
 
 		std::atomic_size_t m_entries{};
+
+		u8 m_currentAge{};
 	};
 }

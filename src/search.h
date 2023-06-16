@@ -52,11 +52,14 @@ namespace polaris::search
 	constexpr u32 DefaultThreadCount = 1;
 	constexpr auto ThreadCountRange = util::Range<u32>{1,  2048};
 
+	constexpr auto SyzygyProbeDepthRange = util::Range<i32>{1, MaxDepth};
+	constexpr auto SyzygyProbeLimitRange = util::Range<i32>{0, 7};
+
 	class Searcher final
 	{
 	public:
 		explicit Searcher(std::optional<usize> hashSize = {});
-		~Searcher();
+		~Searcher() = default;
 
 		void newGame();
 
@@ -83,6 +86,12 @@ namespace polaris::search
 			m_table.resize(size);
 		}
 
+		inline void quit()
+		{
+			stop();
+			stopThreads();
+		}
+
 	private:
 		static constexpr i32 IdleFlag = 0;
 		static constexpr i32 SearchFlag = 1;
@@ -90,13 +99,17 @@ namespace polaris::search
 
 		struct SearchStackEntry
 		{
-			StaticVector<HistoryMove, DefaultMoveListCapacity> quietsTried{};
-
 			Move killer{NullMove};
 
 			Score eval{};
 			HistoryMove currMove{};
 			Move excluded{};
+		};
+
+		struct MoveStackEntry
+		{
+			ScoredMoveList moves{};
+			StaticVector<HistoryMove, 64> quietsTried{};
 		};
 
 		struct ThreadData
@@ -118,11 +131,11 @@ namespace polaris::search
 			eval::nnue::NnueState nnueState{};
 
 			std::vector<SearchStackEntry> stack{};
-			std::vector<ScoredMoveList> moveStack{};
+			std::vector<MoveStackEntry> moveStack{};
 
 			HistoryTable history{};
 
-			Position pos{false};
+			Position pos{};
 		};
 
 		TTable m_table{};
@@ -162,6 +175,7 @@ namespace polaris::search
 		Score search(ThreadData &data, i32 depth, i32 ply, u32 moveStackIdx, Score alpha, Score beta, bool cutnode);
 		Score qsearch(ThreadData &data, i32 ply, u32 moveStackIdx, Score alpha, Score beta);
 
-		void report(const ThreadData &data, i32 depth, Move move, f64 time, Score score, Score alpha, Score beta);
+		void report(const ThreadData &data, i32 depth, Move move,
+			f64 time, Score score, Score alpha, Score beta, bool tb = false);
 	};
 }

@@ -27,6 +27,27 @@
 
 namespace polaris
 {
+	namespace
+	{
+		inline Score scoreToTt(Score score, i32 ply)
+		{
+			if (score < -ScoreWin)
+				return score + ply;
+			else if (score > ScoreWin)
+				return score - ply;
+			return score;
+		}
+
+		inline Score scoreFromTt(Score score, i32 ply)
+		{
+			if (score < -ScoreWin)
+				return score - ply;
+			else if (score > ScoreWin)
+				return score + ply;
+			return score;
+		}
+	}
+
 	TTable::TTable(usize size)
 	{
 		resize(size);
@@ -50,60 +71,59 @@ namespace polaris
 		m_mask = capacity - 1;
 	}
 
-	bool TTable::probe(ProbedTTableEntry &dst, u64 key, i32 depth, Score alpha, Score beta) const
+	bool TTable::probe(ProbedTTableEntry &dst, u64 key, i32 depth, i32 ply, Score alpha, Score beta) const
 	{
 		if (m_table.empty())
 			return false;
 
 		const auto entry = loadEntry(key);
 
-		if (static_cast<u16>(key >> 48) == entry.key)
+		if (entry.type != EntryType::None
+			&& static_cast<u16>(key >> 48) == entry.key)
 		{
+			dst.score = scoreFromTt(static_cast<Score>(entry.score), ply);
 			dst.depth = entry.depth;
 			dst.move = entry.move;
+			dst.type = entry.type;
 
-			if (entry.depth > depth)
+			if (entry.depth >= depth)
 			{
-				dst.type = entry.type;
-
-				switch (entry.type)
+				if (entry.type == EntryType::Alpha)
 				{
-				case EntryType::Alpha:
 					if (entry.score <= alpha)
 						dst.score = alpha;
 					else return false;
-					break;
-				case EntryType::Beta:
+				}
+				else if (entry.type == EntryType::Beta)
+				{
 					if (entry.score >= beta)
 						dst.score = beta;
 					else return false;
-					break;
-				default: // exact
-					dst.score = static_cast<i32>(entry.score);
-					break;
 				}
 
 				return true;
 			}
 		}
+		else dst.type = EntryType::None;
 
 		return false;
 	}
 
-	Move TTable::probeMove(u64 key) const
+	Move TTable::probePvMove(u64 key) const
 	{
 		if (m_table.empty())
 			return NullMove;
 
 		const auto entry = loadEntry(key);
 
-		if (static_cast<u16>(key >> 48) == entry.key)
+		if (entry.type == EntryType::Exact
+		    && static_cast<u16>(key >> 48) == entry.key)
 			return entry.move;
 
 		return NullMove;
 	}
 
-	void TTable::put(u64 key, Score score, Move move, i32 depth, EntryType type)
+	void TTable::put(u64 key, Score score, Move move, i32 depth, i32 ply, EntryType type)
 	{
 		if (m_table.empty())
 			return;
@@ -114,8 +134,10 @@ namespace polaris
 
 		// always replace empty entries
 		const bool replace = entry.key == 0
-			// otherwise, always replace with PV entries
+			// always replace with PV entries
 			|| type == EntryType::Exact
+			// always replace entries from previous searches
+			|| entry.age != m_currentAge
 			// otherwise, replace if the depth is greater
 			// only replace entries from the same position if the depth is significantly greater
 			|| entry.depth < depth + (entry.key == entryKey ? 3 : 0);
@@ -129,20 +151,22 @@ namespace polaris
 #endif
 
 		entry.key = entryKey;
-		entry.score = static_cast<i16>(score);
+		entry.score = static_cast<i16>(scoreToTt(score, ply));
 		entry.move = move;
 		entry.depth = depth;
+		entry.age = m_currentAge;
 		entry.type = type;
 
 		exchangeEntry(key, entry);
 
-		if (entry.key == 0)
+		if (entry.type == EntryType::None)
 			++m_entries;
 	}
 
 	void TTable::clear()
 	{
 		m_entries = 0;
+		m_currentAge = 0;
 
 		if (!m_table.empty())
 			std::memset(m_table.data(), 0, m_table.size() * sizeof(TTableEntry));

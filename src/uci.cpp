@@ -27,6 +27,7 @@
 #include <algorithm>
 #include <iomanip>
 #include <atomic>
+#include <numeric>
 
 #include "util/split.h"
 #include "util/parse.h"
@@ -42,6 +43,7 @@
 #include "bench.h"
 #include "opts.h"
 #include "tunable.h"
+#include "syzygy/tbprobe.h"
 
 #include "hash.h"
 
@@ -65,7 +67,7 @@ namespace polaris
 		{
 		public:
 			UciHandler() = default;
-			~UciHandler() = default;
+			~UciHandler();
 
 			i32 run();
 
@@ -90,15 +92,23 @@ namespace polaris
 			void handleVerify();
 #endif
 
+			bool m_fathomInitialized{false};
+
 			search::Searcher m_searcher{};
 
 			Position m_pos{Position::starting()};
 
-			std::optional<usize> m_newSearcherHashSize{};
-			std::optional<usize> m_hashSize{};
-
 			i32 m_moveOverhead{limit::DefaultMoveOverhead};
 		};
+
+		UciHandler::~UciHandler()
+		{
+			// can't do this in a destructor, because it will run after tb_free is called
+			m_searcher.quit();
+
+			if (m_fathomInitialized)
+				tb_free();
+		}
 
 		i32 UciHandler::run()
 		{
@@ -169,10 +179,15 @@ namespace polaris
 		//	std::cout << "option name Contempt type spin default 0 min -10000 max 10000\n";
 			std::cout << "option name UCI_Chess960 type check default "
 				<< (defaultOpts.chess960 ? "true" : "false") << '\n';
-			std::cout << "option name Underpromotions type check default "
-				<< (defaultOpts.underpromotions ? "true" : "false") << '\n';
 			std::cout << "option name Move Overhead type spin default " << limit::DefaultMoveOverhead
 				<< " min " << limit::MoveOverheadRange.min() << " max " << limit::MoveOverheadRange.max() << '\n';
+			std::cout << "option name SyzygyPath type string default <empty>\n";
+			std::cout << "option name SyzygyProbeDepth type spin default " << defaultOpts.syzygyProbeDepth
+				<< " min " << search::SyzygyProbeDepthRange.min()
+				<< " max " << search::SyzygyProbeDepthRange.max() << '\n';
+			std::cout << "option name SyzygyProbeLimit type spin default " << defaultOpts.syzygyProbeLimit
+				<< " min " << search::SyzygyProbeLimitRange.min()
+				<< " max " << search::SyzygyProbeLimitRange.max() << '\n';
 
 			std::cout << "uciok" << std::endl;
 		}
@@ -237,12 +252,6 @@ namespace polaris
 				std::cerr << "already searching" << std::endl;
 			else
 			{
-				if (m_hashSize)
-				{
-					m_searcher.setHashSize(*m_hashSize);
-					m_hashSize = {};
-				}
-
 				u32 depth = search::MaxDepth;
 				std::unique_ptr<limit::ISearchLimiter> limiter{};
 
@@ -444,7 +453,7 @@ namespace polaris
 					if (!valueEmpty)
 					{
 						if (const auto newHashSize = util::tryParseSize(valueStr))
-							m_newSearcherHashSize = m_hashSize = HashSizeRange.clamp(*newHashSize);
+							m_searcher.setHashSize(HashSizeRange.clamp(*newHashSize));
 					}
 				}
 				else if (nameStr == "clear hash")
@@ -452,12 +461,7 @@ namespace polaris
 					if (m_searcher.searching())
 						std::cerr << "still searching" << std::endl;
 
-					if (m_hashSize)
-					{
-						m_searcher.setHashSize(*m_hashSize);
-						m_hashSize = {};
-					}
-					else m_searcher.clearHash();
+					m_searcher.clearHash();
 				}
 				else if (nameStr == "threads")
 				{
@@ -478,20 +482,47 @@ namespace polaris
 							s_opts.chess960 = *newChess960;
 					}
 				}
-				else if (nameStr == "underpromotions")
-				{
-					if (!valueEmpty)
-					{
-						if (const auto newUnderpromotions = util::tryParseBool(valueStr))
-							s_opts.underpromotions = *newUnderpromotions;
-					}
-				}
 				else if (nameStr == "move overhead")
 				{
 					if (!valueEmpty)
 					{
 						if (const auto newMoveOverhead = util::tryParseI32(valueStr))
 							m_moveOverhead = limit::MoveOverheadRange.clamp(*newMoveOverhead);
+					}
+				}
+				else if (nameStr == "syzygypath")
+				{
+					if (m_searcher.searching())
+						std::cerr << "still searching" << std::endl;
+
+					m_fathomInitialized = true;
+
+					if (valueEmpty)
+					{
+						s_opts.syzygyEnabled = false;
+						tb_init("");
+					}
+					else
+					{
+						s_opts.syzygyEnabled = valueStr != "<empty>";
+						if (!tb_init(valueStr.c_str()))
+							std::cerr << "failed to initialize Fathom" << std::endl;
+					}
+				}
+				else if (nameStr == "syzygyprobedepth")
+				{
+					if (!valueEmpty)
+					{
+						if (const auto newSyzygyProbeDepth = util::tryParseI32(valueStr))
+							s_opts.syzygyProbeDepth = search::SyzygyProbeLimitRange.clamp(*newSyzygyProbeDepth);
+					}
+				}
+				else if (nameStr == "syzygyprobelimit")
+				{
+					if (!valueEmpty)
+					{
+						if (const auto newSyzygyProbeLimit = util::tryParseI32(valueStr))
+							s_opts.syzygyProbeLimit = search::SyzygyProbeLimitRange.clamp(*newSyzygyProbeLimit);
 					}
 				}
 #if PS_TUNE_SEARCH
@@ -789,6 +820,26 @@ namespace polaris
 		{
 			UciHandler handler{};
 			return handler.run();
+		}
+
+		i32 winRateModel(Score povScore, u32 ply)
+		{
+			constexpr auto As = std::array { 
+				-16.47359643, 125.09292680, -150.78265049, 133.46169058
+			};
+			constexpr auto Bs = std::array { 
+				-10.64392182, 68.80469735, -98.63536151, 100.12391368
+			};
+
+			static_assert(uci::NormalizationK == static_cast<i32>(std::reduce(As.begin(), As.end())));
+
+			const auto m = std::min(240.0, static_cast<f64>(ply)) / 64.0;
+			const auto a = (((As[0] * m + As[1]) * m + As[2]) * m) + As[3];
+			const auto b = (((Bs[0] * m + Bs[1]) * m + Bs[2]) * m) + Bs[3];
+
+			const auto x = std::clamp(static_cast<f64>(povScore), -4000.0, 4000.0);
+
+			return static_cast<i32>(0.5 + 1000.0 / (1.0 + std::exp((a - x) / b)));
 		}
 
 		std::string moveToString(Move move)

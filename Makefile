@@ -3,12 +3,12 @@
 
 EXE = polaris
 
-SOURCES := src/main.cpp src/uci.cpp src/util/split.cpp src/hash.cpp src/position/position.cpp src/movegen.cpp src/attacks/black_magic/attacks.cpp src/search.cpp src/util/timer.cpp src/pretty.cpp src/ttable.cpp src/limit/time.cpp src/eval/nnue.cpp src/perft.cpp src/bench.cpp
+SOURCES := src/main.cpp src/uci.cpp src/util/split.cpp src/hash.cpp src/position/position.cpp src/movegen.cpp src/attacks/black_magic/attacks.cpp src/search.cpp src/util/timer.cpp src/pretty.cpp src/ttable.cpp src/limit/time.cpp src/eval/nnue.cpp src/perft.cpp src/bench.cpp src/syzygy/tbprobe.cpp
 
 SUFFIX :=
 
 CXX := clang++
-CXXFLAGS := -std=c++20 -O3 -flto -march=native -DNDEBUG -DPS_NATIVE -DPS_VERSION=$(shell git rev-parse --short HEAD)
+CXXFLAGS := -std=c++20 -O3 -flto -march=native -DNDEBUG -DPS_NATIVE -DPS_VERSION=OpenBench
 
 LDFLAGS :=
 
@@ -28,7 +28,7 @@ else
             LDFLAGS += -fuse-ld=lld
         endif
     endif
-    LDFLAGS += -lpthread
+    LDFLAGS += -pthread
 # don't ask
 ifdef IS_COSMO
     CXXFLAGS += -stdlib=libc++

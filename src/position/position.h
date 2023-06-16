@@ -50,12 +50,29 @@ namespace polaris
 
 		u16 halfmove{};
 
-		Piece captured{Piece::None};
-
 		Square enPassant{Square::None};
 
-		Square blackKing{Square::None};
-		Square whiteKing{Square::None};
+		std::array<Square, 2> kings{Square::None, Square::None};
+
+		[[nodiscard]] inline auto blackKing() const
+		{
+			return kings[0];
+		}
+
+		[[nodiscard]] inline auto whiteKing() const
+		{
+			return kings[1];
+		}
+
+		[[nodiscard]] inline auto king(Color c) const
+		{
+			return kings[static_cast<i32>(c)];
+		}
+
+		[[nodiscard]] inline auto &king(Color c)
+		{
+			return kings[static_cast<i32>(c)];
+		}
 	};
 
 	static_assert(sizeof(BoardState) == 104);
@@ -75,14 +92,18 @@ namespace polaris
 	class HistoryGuard
 	{
 	public:
-		HistoryGuard(Position &pos, eval::nnue::NnueState *nnueState)
+		explicit HistoryGuard(Position &pos, eval::nnue::NnueState *nnueState, bool legal)
 			: m_pos{pos},
-			  m_nnueState{nnueState} {}
+			  m_nnueState{nnueState},
+			  m_legal{legal} {}
 		inline ~HistoryGuard();
+
+		[[nodiscard]] explicit operator bool() const { return m_legal; }
 
 	private:
 		Position &m_pos;
 		eval::nnue::NnueState *m_nnueState;
+		bool m_legal{};
 	};
 
 	class Position
@@ -95,15 +116,14 @@ namespace polaris
 		Position(Position &&) = default;
 
 		template <bool UpdateNnue = true, bool StateHistory = true>
-		void applyMoveUnchecked(Move move, eval::nnue::NnueState *nnueState, TTable *prefetchTt = nullptr);
+		bool applyMoveUnchecked(Move move, eval::nnue::NnueState *nnueState, TTable *prefetchTt = nullptr);
 
 		template <bool UpdateNnue = true>
 		[[nodiscard]] inline HistoryGuard<UpdateNnue> applyMove(Move move,
 			eval::nnue::NnueState *nnueState, TTable *prefetchTt = nullptr)
 		{
-			HistoryGuard<UpdateNnue> guard{*this, UpdateNnue ? nnueState : nullptr};
-			applyMoveUnchecked<UpdateNnue>(move, nnueState, prefetchTt);
-			return guard;
+			return HistoryGuard<UpdateNnue>{*this, UpdateNnue ? nnueState : nullptr,
+				applyMoveUnchecked<UpdateNnue>(move, nnueState, prefetchTt)};
 		}
 
 		template <bool UpdateNnue = true>
@@ -140,7 +160,8 @@ namespace polaris
 
 		[[nodiscard]] inline auto interpScore(TaperedScore score) const
 		{
-			return (score.midgame * currState().phase + score.endgame * (24 - currState().phase)) / 24;
+			const auto &state = currState();
+			return (score.midgame() * state.phase + score.endgame() * (24 - state.phase)) / 24;
 		}
 
 		[[nodiscard]] inline Bitboard allAttackersTo(Square square, Bitboard occupancy) const
@@ -197,10 +218,8 @@ namespace polaris
 			return attackers;
 		}
 
-		[[nodiscard]] inline bool isAttacked(Square square, Color attacker) const
+		[[nodiscard]] inline bool isAttacked(const PositionBoards &boards, Square square, Color attacker) const
 		{
-			const auto &boards = this->boards();
-
 			const auto occ = boards.occupancy();
 
 			if (const auto knights = boards.knights(attacker);
@@ -228,6 +247,11 @@ namespace polaris
 			return false;
 		}
 
+		[[nodiscard]] inline bool isAttacked(Square square, Color attacker) const
+		{
+			return isAttacked(boards(), square, attacker);
+		}
+
 		[[nodiscard]] inline bool anyAttacked(Bitboard squares, Color attacker) const
 		{
 			while (squares)
@@ -240,33 +264,29 @@ namespace polaris
 			return false;
 		}
 
-		[[nodiscard]] inline auto blackKing() const { return currState().blackKing; }
-		[[nodiscard]] inline auto whiteKing() const { return currState().whiteKing; }
+		[[nodiscard]] inline auto blackKing() const { return currState().blackKing(); }
+		[[nodiscard]] inline auto whiteKing() const { return currState().whiteKing(); }
 
 		template <Color C>
 		[[nodiscard]] inline auto king() const
 		{
-			if constexpr (C == Color::Black)
-				return currState().blackKing;
-			else return currState().whiteKing;
+			return currState().king(C);
 		}
 
 		[[nodiscard]] inline auto king(Color c) const
 		{
-			return c == Color::Black ? currState().blackKing : currState().whiteKing;
+			return currState().king(c);
 		}
 
 		template <Color C>
 		[[nodiscard]] inline auto oppKing() const
 		{
-			if constexpr (C == Color::Black)
-				return currState().whiteKing;
-			else return currState().blackKing;
+			return currState().king(oppColor(C));
 		}
 
 		[[nodiscard]] inline auto oppKing(Color c) const
 		{
-			return c == Color::Black ? currState().whiteKing : currState().blackKing;
+			return currState().king(oppColor(c));
 		}
 
 		[[nodiscard]] inline bool isCheck() const
@@ -360,8 +380,7 @@ namespace polaris
 		[[nodiscard]] inline bool deepEquals(const Position &other) const
 		{
 			return *this == other
-				&& currState().blackKing == other.m_states.back().blackKing
-				&& currState().whiteKing == other.m_states.back().whiteKing
+				&& currState().kings == other.m_states.back().kings
 				&& currState().checkers == other.m_states.back().checkers
 				&& currState().phase == other.m_states.back().phase
 				&& currState().key == other.m_states.back().key
@@ -388,25 +407,28 @@ namespace polaris
 
 	private:
 		template <bool UpdateKeys = true, bool UpdateNnue = true>
-		Piece setPiece(Square square, Piece piece, eval::nnue::NnueState *nnueState);
+		void setPiece(Piece piece, Square square, eval::nnue::NnueState *nnueState);
 		template <bool UpdateKeys = true, bool UpdateNnue = true>
-		Piece removePiece(Square square, eval::nnue::NnueState *nnueState);
+		void removePiece(Piece piece, Square square, eval::nnue::NnueState *nnueState);
 		template <bool UpdateKeys = true, bool UpdateNnue = true>
-		Piece movePiece(Square src, Square dst, eval::nnue::NnueState *nnueState);
+		void movePieceNoCap(Piece piece, Square src, Square dst, eval::nnue::NnueState *nnueState);
 
 		template <bool UpdateKeys = true, bool UpdateNnue = true>
-		Piece promotePawn(Square src, Square dst, BasePiece target, eval::nnue::NnueState *nnueState);
+		[[nodiscard]] Piece movePiece(Piece piece, Square src, Square dst, eval::nnue::NnueState *nnueState);
+
 		template <bool UpdateKeys = true, bool UpdateNnue = true>
-		void castle(Square kingSrc, Square rookSrc, eval::nnue::NnueState *nnueState);
+		Piece promotePawn(Piece pawn, Square src, Square dst, BasePiece target, eval::nnue::NnueState *nnueState);
 		template <bool UpdateKeys = true, bool UpdateNnue = true>
-		Piece enPassant(Square src, Square dst, eval::nnue::NnueState *nnueState);
+		void castle(Piece king, Square kingSrc, Square rookSrc, eval::nnue::NnueState *nnueState);
+		template <bool UpdateKeys = true, bool UpdateNnue = true>
+		Piece enPassant(Piece pawn, Square src, Square dst, eval::nnue::NnueState *nnueState);
 
 		[[nodiscard]] inline Bitboard calcCheckers() const
 		{
 			const auto color = toMove();
 			const auto &state = currState();
 
-			return attackersTo(color == Color::White ? state.whiteKing : state.blackKing, oppColor(color));
+			return attackersTo(state.king(color), oppColor(color));
 		}
 
 		bool m_blackToMove{};
