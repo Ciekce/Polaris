@@ -9,7 +9,8 @@
 </div>
 
 a work-in-progress UCI chess and [chess960](https://en.wikipedia.org/wiki/Fischer_random_chess) engine  
-this branch is an experiment for fun, using [Viridithas](https://github.com/cosmobobak/viridithas)' current network (net 60) and inference
+this branch is an experiment for fun, using [Viridithas](https://github.com/cosmobobak/viridithas)' current network (net 60) and inference  
+due to the radically different eval, WDL normalisation and output are removed :3
 
 ## Strength
 | Version | [CCRL 40/15](https://www.computerchess.org.uk/ccrl/4040/) | [CCRL Blitz](https://www.computerchess.org.uk/ccrl/404/) | [CCRL 40/2 FRC](https://www.computerchess.org.uk/ccrl/404FRC/) | [MCERL](https://www.chessengeria.com/mcerl) |
