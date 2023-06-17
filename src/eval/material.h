@@ -31,11 +31,11 @@ namespace polaris::eval
 	namespace values
 	{
 		// keep below 2000
-		constexpr auto Pawn = S(89, 100);
-		constexpr auto Knight = S(382, 331);
-		constexpr auto Bishop = S(402, 362);
-		constexpr auto Rook = S(512, 647);
-		constexpr auto Queen = S(1109, 1246);
+		constexpr auto Pawn = S(82, 100);
+		constexpr auto Knight = S(358, 352);
+		constexpr auto Bishop = S(386, 382);
+		constexpr auto Rook = S(512, 670);
+		constexpr auto Queen = S(1088, 1266);
 
 		constexpr auto King = S(0, 0);
 
