@@ -750,10 +750,8 @@ namespace polaris::search
 
 		bestScore = std::clamp(bestScore, syzygyMin, syzygyMax);
 
-		// increase depth for tt if in check
-		// https://chess.swehosting.se/test/1456/
 		if (!stack.excluded)
-			m_table.put(pos.key(), bestScore, best, inCheck ? depth + 1 : depth, ply, entryType);
+			m_table.put(pos.key(), bestScore, best, depth, ply, entryType);
 
 		if (root && (!m_stop || !data.search.move))
 			data.search.move = best;
