@@ -320,8 +320,8 @@ namespace polaris::search
 
 				auto delta = initialAspWindow();
 
-				auto alpha = score - delta;
-				auto beta = score + delta;
+				auto alpha = std::max(score - delta, -ScoreMax);
+				auto beta = std::min(score + delta, ScoreMax);
 
 				while (!shouldStop(searchData, false))
 				{
@@ -347,18 +347,18 @@ namespace polaris::search
 
 					delta += delta / 2;
 
-					if (delta > maxAspWindow())
+					if (delta > maxAspWindow() || std::abs(score) > ScoreWin)
 						delta = ScoreMate;
 
 					if (score >= beta)
 					{
-						beta += delta;
+						beta = std::min(beta + delta, ScoreMax);
 						--aspDepth;
 					}
 					else if (score <= alpha)
 					{
 						beta = (alpha + beta) / 2;
-						alpha = std::max(alpha - delta, -ScoreMate);
+						alpha = std::max(alpha - delta, -ScoreMax);
 						aspDepth = depth;
 					}
 					else
