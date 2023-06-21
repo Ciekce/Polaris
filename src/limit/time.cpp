@@ -53,10 +53,10 @@ namespace polaris::limit
 			return;
 
 		if (stableBestMove)
-			m_stability = std::min(m_stability + 1, 9);
+			m_stability = std::min(m_stability + 1, 10);
 		else m_stability = 0;
 
-		const auto stabilityScale = 1.32 - static_cast<f64>(m_stability) * 0.06;
+		const auto stabilityScale = 1.25 - static_cast<f64>(m_stability) * 0.05;
 
 		m_scale = stabilityScale;
 	}
