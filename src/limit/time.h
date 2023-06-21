@@ -56,5 +56,9 @@ namespace polaris::limit
 
 		f64 m_softTime{};
 		f64 m_maxTime{};
+
+		f64 m_scale{1.0};
+
+		i32 m_stability{};
 	};
 }
