@@ -461,20 +461,25 @@ namespace polaris::search
 		}
 
 		ProbedTTableEntry entry{};
-		auto hashMove = NullMove;
+
+		auto ttMove = NullMove;
+		bool ttMoveNoisy = false;
 
 		if (!stack.excluded)
 		{
 			if (m_table.probe(entry, pos.key(), depth, ply, alpha, beta) && !pv)
 				return entry.score;
 			else if (entry.move && pos.isPseudolegal(entry.move))
-				hashMove = entry.move;
+			{
+				ttMove = entry.move;
+				ttMoveNoisy = pos.isNoisy(ttMove);
+			}
 
 			// internal iterative reduction
 			if (!inCheck
 				&& depth >= minIirDepth()
 				&& !stack.excluded
-				&& !hashMove
+				&& !ttMove
 				&& (pv || cutnode))
 				--depth;
 		}
@@ -607,7 +612,7 @@ namespace polaris::search
 		auto entryType = EntryType::Alpha;
 
 		MoveGenerator generator{pos, stack.killer, moveStack.moves,
-			hashMove, prevMove, prevPrevMove, &data.history};
+			ttMove, prevMove, prevPrevMove, &data.history};
 
 		u32 legalMoves = 0;
 
@@ -655,31 +660,37 @@ namespace polaris::search
 				score = drawScore(data.search.nodes);
 			else
 			{
-				i32 reduction{};
-
-				// lmr
-				if (depth >= minLmrDepth()
-					&& legalMoves >= minLmrMoves
-					&& !inCheck // we are in check
-					&& generator.stage() >= MovegenStage::Quiet)
-				{
-					auto lmr = baseLmr;
-
-					if (!pv)
-						++lmr;
-
-					if (pos.isCheck()) // this move gives check
-						--lmr;
-
-					reduction = std::clamp(lmr, 0, depth - 2);
-				}
-
 				const auto newDepth = depth - 1 + extension;
 
 				if (pv && legalMoves == 1)
 					score = -search(data, newDepth, ply + 1, moveStackIdx + 1, -beta, -alpha, false);
 				else
 				{
+					i32 reduction{};
+
+					// lmr
+					if (depth >= minLmrDepth()
+						&& legalMoves >= minLmrMoves
+						&& !inCheck // we are in check
+						&& generator.stage() >= MovegenStage::Quiet)
+					{
+						auto lmr = baseLmr;
+
+						// reduce more in non-pv nodes
+						if (!pv)
+							++lmr;
+
+						// reduce moves that give check less
+						if (pos.isCheck())
+							--lmr;
+
+						// reduce quiet moves more if the tt move is noisy
+						if (ttMoveNoisy && !pos.isNoisy(move))
+							++lmr;
+
+						reduction = std::clamp(lmr, 0, depth - 2);
+					}
+
 					score = -search(data, newDepth - reduction, ply + 1, moveStackIdx + 1, -alpha - 1, -alpha, true);
 
 					if (score > alpha && reduction > 0)
