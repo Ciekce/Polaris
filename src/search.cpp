@@ -346,8 +346,6 @@ namespace polaris::search
 							report(data, data.search.depth, best ?: searchData.move, time, score, alpha, beta);
 					}
 
-					delta += delta / 2;
-
 					if (delta > maxAspWindow())
 						delta = ScoreMate;
 
@@ -368,6 +366,8 @@ namespace polaris::search
 						depthCompleted = depth;
 						break;
 					}
+
+					delta += delta / 2;
 				}
 			}
 
