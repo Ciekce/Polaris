@@ -557,13 +557,13 @@ namespace polaris::search
 			}
 		}
 
-		if (!root && !pos.lastMove())
-			stack.eval = eval::flipTempo(-data.stack[ply - 1].eval);
-		else if (stack.excluded)
-			stack.eval = data.stack[ply - 1].eval; // not prevStack
-		else stack.eval = inCheck ? 0 : eval::staticEval(pos, &data.pawnCache);
-
-		stack.currMove = {};
+		// we already have the static eval in a singularity search
+		if (!stack.excluded)
+		{
+			if (!root && !pos.lastMove())
+				stack.eval = eval::flipTempo(-data.stack[ply - 1].eval);
+			else stack.eval = inCheck ? 0 : eval::staticEval(pos, &data.pawnCache);
+		}
 
 		const bool improving = !inCheck && ply > 1 && stack.eval > data.stack[ply - 2].eval;
 
@@ -645,9 +645,31 @@ namespace polaris::search
 			++data.search.nodes;
 			++legalMoves;
 
-			stack.currMove = {movingPiece, moveActualDst(move)};
-
 			i32 extension{};
+
+			// singular extension
+			if (depth >= minSingularityDepth()
+				&& move == ttMove
+				&& !stack.excluded
+				&& entry.depth >= depth - singularityDepthMargin()
+				&& entry.type != EntryType::Alpha)
+			{
+				const auto sBeta = std::max(-ScoreMate, entry.score - singularityDepthScale() * depth);
+				const auto sDepth = (depth - 1) / 2;
+
+				stack.excluded = move;
+				pos.popMove();
+
+				const auto score = search(data, sDepth, ply, moveStackIdx + 1, sBeta - 1, sBeta, cutnode);
+
+				stack.excluded = NullMove;
+				pos.applyMoveUnchecked(move);
+
+				if (score < sBeta)
+					extension = 1;
+			}
+
+			stack.currMove = {movingPiece, moveActualDst(move)};
 
 			Score score{};
 
