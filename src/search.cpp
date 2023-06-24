@@ -617,6 +617,7 @@ namespace polaris::search
 				continue;
 
 			const bool quietOrLosing = generator.stage() >= MovegenStage::Quiet;
+			const bool noisy = pos.isNoisy(move);
 
 			const auto baseLmr = LmrTable[depth][legalMoves + 1];
 
@@ -631,7 +632,7 @@ namespace polaris::search
 
 				// see pruning
 				if (depth <= maxSeePruningDepth()
-					&& !see::see(pos, move, depth * (pos.isNoisy(move) ? noisySeeThreshold() : quietSeeThreshold())))
+					&& !see::see(pos, move, depth * (noisy ? noisySeeThreshold() : quietSeeThreshold())))
 					continue;
 			}
 
@@ -671,10 +672,16 @@ namespace polaris::search
 					{
 						auto lmr = baseLmr;
 
+						// reduce more in non-pv nodes
 						if (!pv)
 							++lmr;
 
-						if (pos.isCheck()) // this move gives check
+						// reduce checks less
+						if (pos.isCheck())
+							--lmr;
+
+						// reduce captures less
+						if (noisy && move.type() != MoveType::Promotion)
 							--lmr;
 
 						reduction = std::clamp(lmr, 0, depth - 2);
