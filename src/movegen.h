@@ -43,8 +43,8 @@ namespace polaris
 	struct MovegenStage
 	{
 		static constexpr i32 Start = 0;
-		static constexpr i32 Tt = Start + 1;
-		static constexpr i32 GoodNoisy = Tt + 1;
+		static constexpr i32 TtMove = Start + 1;
+		static constexpr i32 GoodNoisy = TtMove + 1;
 		static constexpr i32 Killer = GoodNoisy + 1;
 		static constexpr i32 Countermove = Killer + 1;
 		static constexpr i32 Quiet = Countermove + 1;
@@ -82,7 +82,7 @@ namespace polaris
 
 					switch (m_stage)
 					{
-					case MovegenStage::Tt:
+					case MovegenStage::TtMove:
 						if (m_ttMove)
 							return m_ttMove;
 						break;

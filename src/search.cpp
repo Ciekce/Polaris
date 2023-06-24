@@ -622,6 +622,7 @@ namespace polaris::search
 				continue;
 
 			const bool quietOrLosing = generator.stage() >= MovegenStage::Quiet;
+			const bool quiet = move == ttMove ? !ttMoveNoisy : !pos.isNoisy(move);
 
 			const auto baseLmr = LmrTable[depth][legalMoves + 1];
 
@@ -636,7 +637,7 @@ namespace polaris::search
 
 				// see pruning
 				if (depth <= maxSeePruningDepth()
-					&& !see::see(pos, move, depth * (pos.isNoisy(move) ? noisySeeThreshold() : quietSeeThreshold())))
+					&& !see::see(pos, move, depth * (!quiet ? noisySeeThreshold() : quietSeeThreshold())))
 					continue;
 			}
 
@@ -685,7 +686,7 @@ namespace polaris::search
 							--lmr;
 
 						// reduce quiet moves more if the tt move is noisy
-						if (ttMoveNoisy && !pos.isNoisy(move))
+						if (ttMoveNoisy && quiet)
 							++lmr;
 
 						reduction = std::clamp(lmr, 0, depth - 2);
@@ -803,19 +804,19 @@ namespace polaris::search
 			data.search.seldepth = ply + 1;
 
 		ProbedTTableEntry entry{};
-		auto hashMove = NullMove;
+		auto ttMove = NullMove;
 
 		if (m_table.probe(entry, pos.key(), 0, ply, alpha, beta))
 			return entry.score;
 		else if (entry.move && pos.isPseudolegal(entry.move))
-			hashMove = entry.move;
+			ttMove = entry.move;
 
 		auto best = NullMove;
 		auto bestScore = staticEval;
 
 		auto entryType = EntryType::Alpha;
 
-		QMoveGenerator generator{pos, NullMove, data.moveStack[moveStackIdx].moves, hashMove};
+		QMoveGenerator generator{pos, NullMove, data.moveStack[moveStackIdx].moves, ttMove};
 
 		while (const auto move = generator.next())
 		{
