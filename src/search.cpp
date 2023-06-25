@@ -668,13 +668,18 @@ namespace polaris::search
 					// lmr
 					if (depth >= minLmrDepth()
 						&& legalMoves >= minLmrMoves
-						&& !inCheck // we are in check
-						&& generator.stage() >= MovegenStage::Quiet)
+						&& !inCheck /* we are in check */)
 					{
-						auto lmr = baseLmr;
+						i32 lmr = 0;
 
-						if (!pv)
-							++lmr;
+						if(quietOrLosing)
+						{
+							lmr = baseLmr;
+							if (!pv)
+								++lmr;
+						}
+						else if (!pv) // reduce good noisy moves if not in a pv node
+							lmr = baseLmr;
 
 						if (pos.isCheck()) // this move gives check
 							--lmr;
