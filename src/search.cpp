@@ -694,7 +694,7 @@ namespace polaris::search
 				}
 			}
 
-			if (root)
+			if (root && data.id == 0)
 				m_limiter->updateMoveNodes(move, data.search.nodes - prevNodes);
 
 			if (score > bestScore)
