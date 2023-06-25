@@ -247,7 +247,7 @@ namespace polaris
 
 			m_goodNoisyEnd = std::find_if(m_moves.begin() + m_idx, m_moves.end(), [](const auto &v)
 			{
-				return v.score < -4 * 2000 * 2000;
+				return v.score < 4 * 2000 * 2000;
 			}) - m_moves.begin();
 		}
 
