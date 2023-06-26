@@ -348,7 +348,7 @@ namespace polaris::search
 					delta += delta / 2;
 
 					if (delta > maxAspWindow())
-						delta = ScoreMate;
+						delta = ScoreMax;
 
 					if (score >= beta)
 					{
