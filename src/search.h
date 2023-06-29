@@ -59,35 +59,42 @@ namespace polaris::search
 	{
 	public:
 		explicit Searcher(std::optional<usize> hashSize = {});
-		~Searcher() = default;
 
-		void newGame();
+		~Searcher()
+		{
+			if (!m_quit)
+				quit();
+		}
 
-		void startSearch(const Position &pos, i32 maxDepth, std::unique_ptr<limit::ISearchLimiter> limiter);
-		void stop();
+		auto newGame() -> void;
 
-		void runBench(BenchData &data, const Position &pos, i32 depth);
+		auto startSearch(const Position &pos, i32 maxDepth, std::unique_ptr<limit::ISearchLimiter> limiter) -> void;
+		auto stop() -> void;
 
-		[[nodiscard]] inline bool searching() const
+		auto runBench(BenchData &data, const Position &pos, i32 depth) -> void;
+
+		[[nodiscard]] inline auto searching() const
 		{
 			std::unique_lock lock{m_searchMutex};
 			return m_flag.load(std::memory_order::relaxed) == SearchFlag;
 		}
 
-		void setThreads(u32 threads);
+		auto setThreads(u32 threads) -> void;
 
-		inline void clearHash()
+		inline auto clearHash()
 		{
 			m_table.clear();
 		}
 
-		inline void setHashSize(usize size)
+		inline auto setHashSize(usize size)
 		{
 			m_table.resize(size);
 		}
 
-		inline void quit()
+		inline auto quit() -> void
 		{
+			m_quit = true;
+
 			stop();
 			stopThreads();
 		}
@@ -109,7 +116,8 @@ namespace polaris::search
 		struct MoveStackEntry
 		{
 			ScoredMoveList moves{};
-			StaticVector<HistoryMove, 64> quietsTried{};
+			StaticVector<HistoryMove, 256> quietsTried{};
+			StaticVector<std::pair<HistoryMove, Piece>, 64> noisiesTried{};
 		};
 
 		struct ThreadData
@@ -138,6 +146,8 @@ namespace polaris::search
 			Position pos{};
 		};
 
+		bool m_quit{false};
+
 		TTable m_table{};
 
 		u32 m_nextThreadId{};
@@ -157,11 +167,11 @@ namespace polaris::search
 
 		std::unique_ptr<limit::ISearchLimiter> m_limiter{};
 
-		void stopThreads();
+		auto stopThreads() -> void;
 
-		void run(ThreadData &data);
+		auto run(ThreadData &data) -> void;
 
-		[[nodiscard]] inline bool shouldStop(const SearchData &data, bool allowSoftTimeout)
+		[[nodiscard]] inline auto shouldStop(const SearchData &data, bool allowSoftTimeout)
 		{
 			if (m_stop.load(std::memory_order::relaxed))
 				return true;
@@ -170,12 +180,13 @@ namespace polaris::search
 			return m_stop.fetch_or(shouldStop, std::memory_order::relaxed) || shouldStop;
 		}
 
-		void searchRoot(ThreadData &data, bool bench);
+		auto searchRoot(ThreadData &data, bool bench) -> void;
 
-		Score search(ThreadData &data, i32 depth, i32 ply, u32 moveStackIdx, Score alpha, Score beta, bool cutnode);
-		Score qsearch(ThreadData &data, i32 ply, u32 moveStackIdx, Score alpha, Score beta);
+		auto search(ThreadData &data, i32 depth, i32 ply,
+			u32 moveStackIdx, Score alpha, Score beta, bool cutnode) -> Score;
+		auto qsearch(ThreadData &data, i32 ply, u32 moveStackIdx, Score alpha, Score beta) -> Score;
 
-		void report(const ThreadData &data, i32 depth, Move move,
-			f64 time, Score score, Score alpha, Score beta, bool tb = false);
+		auto report(const ThreadData &data, i32 depth, Move move,
+			f64 time, Score score, Score alpha, Score beta, bool tbRoot = false) -> void;
 	};
 }

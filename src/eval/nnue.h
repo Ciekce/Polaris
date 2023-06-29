@@ -61,14 +61,14 @@ namespace polaris::eval::nnue
 		std::array<i16, HiddenSize> black;
 		std::array<i16, HiddenSize> white;
 
-		inline void init(std::span<const i16, HiddenSize> bias)
+		inline auto init(std::span<const i16, HiddenSize> bias)
 		{
 			std::memcpy(black.data(), bias.data(), bias.size_bytes());
 			std::memcpy(white.data(), bias.data(), bias.size_bytes());
 		}
 	};
 
-	constexpr i32 screlu(i16 x)
+	constexpr auto screlu(i16 x)
 	{
 		const auto clipped = std::clamp(static_cast<i32>(x), CReluMin, CReluMax);
 		return clipped * clipped;
@@ -85,19 +85,19 @@ namespace polaris::eval::nnue
 
 		~NnueState() = default;
 
-		inline void push()
+		inline auto push()
 		{
 			m_accumulatorStack.push_back(*m_curr);
 			m_curr = &m_accumulatorStack.back();
 		}
 
-		inline void pop()
+		inline auto pop()
 		{
 			m_accumulatorStack.pop_back();
 			m_curr = &m_accumulatorStack.back();
 		}
 
-		inline void reset(const PositionBoards &boards)
+		inline auto reset(const PositionBoards &boards)
 		{
 			m_accumulatorStack.clear();
 			m_curr = &m_accumulatorStack.emplace_back();
@@ -116,7 +116,7 @@ namespace polaris::eval::nnue
 			}
 		}
 
-		inline void moveFeature(Piece piece, Square src, Square dst)
+		inline auto moveFeature(Piece piece, Square src, Square dst)
 		{
 			const auto [blackSrc, whiteSrc] = featureIndices(piece, src);
 			const auto [blackDst, whiteDst] = featureIndices(piece, dst);
@@ -126,7 +126,7 @@ namespace polaris::eval::nnue
 		}
 
 		template <bool Activate>
-		inline void updateFeature(Piece piece, Square sq)
+		inline auto updateFeature(Piece piece, Square sq) -> void
 		{
 			const auto [blackIdx, whiteIdx] = featureIndices(piece, sq);
 
@@ -142,7 +142,7 @@ namespace polaris::eval::nnue
 			}
 		}
 
-		[[nodiscard]] inline Score evaluate(Color stm) const
+		[[nodiscard]] inline auto evaluate(Color stm) const
 		{
 			const auto output = stm == Color::Black
 				? screluFlatten(m_curr->black, m_curr->white, m_net.outputWeights)
@@ -157,8 +157,8 @@ namespace polaris::eval::nnue
 		Accumulator<Layer1Size> *m_curr{};
 
 		template <usize Size, usize Weights>
-		static inline void subtractAndAddToAll(std::array<i16, Size> &input,
-			const std::array<i16, Weights> &delta, usize subOffset, usize addOffset)
+		static inline auto subtractAndAddToAll(std::array<i16, Size> &input,
+			const std::array<i16, Weights> &delta, usize subOffset, usize addOffset) -> void
 		{
 			for (usize i = 0; i < Size; ++i)
 			{
@@ -167,7 +167,8 @@ namespace polaris::eval::nnue
 		}
 
 		template <usize Size, usize Weights>
-		static inline void addToAll(std::array<i16, Size> &input, const std::array<i16, Weights> &delta, usize offset)
+		static inline auto addToAll(std::array<i16, Size> &input,
+			const std::array<i16, Weights> &delta, usize offset) -> void
 		{
 			for (usize i = 0; i < Size; ++i)
 			{
@@ -176,7 +177,8 @@ namespace polaris::eval::nnue
 		}
 
 		template <usize Size, usize Weights>
-		static inline void subtractFromAll(std::array<i16, Size> &input, const std::array<i16, Weights> &delta, usize offset)
+		static inline auto subtractFromAll(std::array<i16, Size> &input,
+			const std::array<i16, Weights> &delta, usize offset) -> void
 		{
 			for (usize i = 0; i < Size; ++i)
 			{
@@ -184,7 +186,7 @@ namespace polaris::eval::nnue
 			}
 		}
 
-		static inline std::pair<usize, usize> featureIndices(Piece piece, Square sq)
+		static inline auto featureIndices(Piece piece, Square sq) -> std::pair<usize, usize>
 		{
 			constexpr usize ColorStride = 64 * 6;
 			constexpr usize PieceStride = 64;
@@ -198,8 +200,8 @@ namespace polaris::eval::nnue
 			return {blackIdx, whiteIdx};
 		}
 
-		static inline i32 screluFlatten(const std::array<i16, Layer1Size> &us,
-			const std::array<i16, Layer1Size> &them, const std::array<i16, Layer1Size * 2> &weights)
+		static inline auto screluFlatten(const std::array<i16, Layer1Size> &us,
+			const std::array<i16, Layer1Size> &them, const std::array<i16, Layer1Size * 2> &weights) -> Score
 		{
 			i32 sum = 0;
 

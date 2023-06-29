@@ -21,12 +21,13 @@
 #include <iostream>
 #include <algorithm>
 #include <cmath>
+#include <cassert>
 
 #include "uci.h"
 #include "movegen.h"
 #include "limit/trivial.h"
 #include "opts.h"
-#include "syzygy/tbprobe.h"
+#include "3rdparty/fathom/tbprobe.h"
 
 namespace polaris::search
 {
@@ -41,7 +42,7 @@ namespace polaris::search
 		constexpr f64 LmrBase = 0.77;
 		constexpr f64 LmrDivisor = 2.36;
 
-		[[nodiscard]] std::array<std::array<i32, 256>, 256> generateLmrTable()
+		[[nodiscard]] auto generateLmrTable()
 		{
 			std::array<std::array<i32, 256>, 256> dst{};
 
@@ -60,7 +61,7 @@ namespace polaris::search
 
 		const auto LmrTable = generateLmrTable();
 
-		inline Score drawScore(usize nodes)
+		inline auto drawScore(usize nodes)
 		{
 			return 2 - static_cast<Score>(nodes % 4);
 		}
@@ -78,7 +79,7 @@ namespace polaris::search
 		}};
 	}
 
-	void Searcher::newGame()
+	auto Searcher::newGame() -> void
 	{
 		m_table.clear();
 
@@ -89,7 +90,8 @@ namespace polaris::search
 		}
 	}
 
-	void Searcher::startSearch(const Position &pos, i32 maxDepth, std::unique_ptr<limit::ISearchLimiter> limiter)
+	auto Searcher::startSearch(const Position &pos,
+		i32 maxDepth, std::unique_ptr<limit::ISearchLimiter> limiter) -> void
 	{
 		if (!limiter)
 		{
@@ -128,8 +130,6 @@ namespace polaris::search
 					BasePiece::Bishop,
 					BasePiece::Knight
 				};
-
-				++m_threads[0].search.tbhits;
 
 				const auto wdl = TB_GET_WDL(result);
 
@@ -175,7 +175,7 @@ namespace polaris::search
 		m_startSignal.notify_all();
 	}
 
-	void Searcher::stop()
+	auto Searcher::stop() -> void
 	{
 		m_stop.store(true, std::memory_order::relaxed);
 		m_flag.store(IdleFlag, std::memory_order::seq_cst);
@@ -191,7 +191,7 @@ namespace polaris::search
 		}
 	}
 
-	void Searcher::runBench(BenchData &data, const Position &pos, i32 depth)
+	auto Searcher::runBench(BenchData &data, const Position &pos, i32 depth) -> void
 	{
 		m_limiter = std::make_unique<limit::InfiniteLimiter>();
 
@@ -216,7 +216,7 @@ namespace polaris::search
 		data.time = time;
 	}
 
-	void Searcher::setThreads(u32 threads)
+	auto Searcher::setThreads(u32 threads) -> void
 	{
 		if (threads != m_threads.size())
 		{
@@ -243,7 +243,7 @@ namespace polaris::search
 		}
 	}
 
-	void Searcher::stopThreads()
+	auto Searcher::stopThreads() -> void
 	{
 		m_flag.store(QuitFlag, std::memory_order::seq_cst);
 		m_startSignal.notify_all();
@@ -254,7 +254,7 @@ namespace polaris::search
 		}
 	}
 
-	void Searcher::run(ThreadData &data)
+	auto Searcher::run(ThreadData &data) -> void
 	{
 		while (true)
 		{
@@ -276,16 +276,16 @@ namespace polaris::search
 		}
 	}
 
-	void Searcher::searchRoot(ThreadData &data, bool bench)
+	auto Searcher::searchRoot(ThreadData &data, bool bench) -> void
 	{
 		auto &searchData = data.search;
 
-		bool shouldReport = !bench && data.id == 0;
+		const bool reportAndUpdate = !bench && data.id == 0;
 
 		Score score{};
 		Move best{};
 
-		const auto startTime = shouldReport ? util::g_timer.time() : 0.0;
+		const auto startTime = reportAndUpdate ? util::g_timer.time() : 0.0;
 		const auto startDepth = 1 + static_cast<i32>(data.id) % 16;
 
 		i32 depthCompleted{};
@@ -302,7 +302,7 @@ namespace polaris::search
 
 			const auto prevBest = best;
 
-			bool reportThisIter = shouldReport;
+			bool reportThisIter = reportAndUpdate;
 
 			if (depth < minAspDepth())
 			{
@@ -322,8 +322,8 @@ namespace polaris::search
 
 				auto delta = initialAspWindow();
 
-				auto alpha = score - delta;
-				auto beta = score + delta;
+				auto alpha = std::max(score - delta, -ScoreMax);
+				auto beta  = std::min(score + delta,  ScoreMax);
 
 				while (!shouldStop(searchData, false))
 				{
@@ -340,7 +340,7 @@ namespace polaris::search
 
 					score = newScore;
 
-					if (shouldReport && (score <= alpha || score >= beta))
+					if (reportAndUpdate && (score <= alpha || score >= beta))
 					{
 						const auto time = util::g_timer.time() - startTime;
 						if (time > MinReportDelay)
@@ -350,17 +350,17 @@ namespace polaris::search
 					delta += delta / 2;
 
 					if (delta > maxAspWindow())
-						delta = ScoreMate;
+						delta = ScoreMax;
 
 					if (score >= beta)
 					{
-						beta += delta;
+						beta = std::min(beta + delta, ScoreMax);
 						--aspDepth;
 					}
 					else if (score <= alpha)
 					{
 						beta = (alpha + beta) / 2;
-						alpha = std::max(alpha - delta, -ScoreMate);
+						alpha = std::max(alpha - delta, -ScoreMax);
 						aspDepth = depth;
 					}
 					else
@@ -372,7 +372,8 @@ namespace polaris::search
 				}
 			}
 
-			m_limiter->update(data.search, prevBest == best);
+			if (reportAndUpdate)
+				m_limiter->update(data.search, best, data.search.nodes);
 
 			if (reportThisIter && depth < data.maxDepth)
 			{
@@ -387,7 +388,7 @@ namespace polaris::search
 			}
 		}
 
-		if (shouldReport)
+		if (reportAndUpdate)
 		{
 			if (!bench)
 				m_searchMutex.lock();
@@ -408,7 +409,7 @@ namespace polaris::search
 			--m_runningThreads;
 			m_stopSignal.notify_all();
 
-			if (shouldReport)
+			if (reportAndUpdate)
 			{
 				m_table.age();
 
@@ -418,9 +419,14 @@ namespace polaris::search
 		}
 	}
 
-	Score Searcher::search(ThreadData &data, i32 depth,
-		i32 ply, u32 moveStackIdx, Score alpha, Score beta, bool cutnode)
+	auto Searcher::search(ThreadData &data, i32 depth,
+		i32 ply, u32 moveStackIdx, Score alpha, Score beta, bool cutnode) -> Score
 	{
+		assert(alpha >= -ScoreMax);
+		assert(beta  <=  ScoreMax);
+		assert(depth >= 0 && depth <= MaxDepth);
+		assert(ply   >= 0 && ply   <= MaxDepth);
+
 		if (depth > 1 && shouldStop(data.search, false))
 			return beta;
 
@@ -462,20 +468,20 @@ namespace polaris::search
 		}
 
 		ProbedTTableEntry entry{};
-		auto hashMove = NullMove;
+		auto ttMove = NullMove;
 
 		if (!stack.excluded)
 		{
 			if (m_table.probe(entry, pos.key(), depth, ply, alpha, beta) && !pv)
 				return entry.score;
 			else if (entry.move && pos.isPseudolegal(entry.move))
-				hashMove = entry.move;
+				ttMove = entry.move;
 
 			// internal iterative reduction
 			if (!inCheck
 				&& depth >= minIirDepth()
 				&& !stack.excluded
-				&& !hashMove
+				&& !ttMove
 				&& (pv || cutnode))
 				--depth;
 		}
@@ -596,6 +602,9 @@ namespace polaris::search
 		}
 
 		moveStack.quietsTried.clear();
+		moveStack.noisiesTried.clear();
+
+		const i32 minLmrMoves = pv ? 3 : 2;
 
 		const auto prevMove = ply > 0 ? data.stack[ply - 1].currMove : HistoryMove{};
 		const auto prevPrevMove = ply > 1 ? data.stack[ply - 2].currMove : HistoryMove{};
@@ -606,7 +615,7 @@ namespace polaris::search
 		auto entryType = EntryType::Alpha;
 
 		MoveGenerator generator{pos, stack.killer, moveStack.moves,
-			hashMove, prevMove, prevPrevMove, &data.history};
+			ttMove, prevMove, prevPrevMove, &data.history};
 
 		u32 legalMoves = 0;
 
@@ -615,7 +624,10 @@ namespace polaris::search
 			if (move == stack.excluded)
 				continue;
 
+			const auto prevNodes = data.search.nodes;
+
 			const bool quietOrLosing = generator.stage() >= MovegenStage::Quiet;
+			const auto [noisy, captured] = pos.noisyCapturedPiece(move);
 
 			const auto baseLmr = LmrTable[depth][legalMoves + 1];
 
@@ -630,7 +642,7 @@ namespace polaris::search
 
 				// see pruning
 				if (depth <= maxSeePruningDepth()
-					&& !see::see(pos, move, depth * (pos.isNoisy(move) ? noisySeeThreshold() : quietSeeThreshold())))
+					&& !see::see(pos, move, depth * (noisy ? noisySeeThreshold() : quietSeeThreshold())))
 					continue;
 			}
 
@@ -654,28 +666,30 @@ namespace polaris::search
 				score = drawScore(data.search.nodes);
 			else
 			{
-				i32 reduction{};
-
-				// lmr
-				if (depth >= minLmrDepth()
-					&& !inCheck // we are in check
-					&& !pos.isCheck() // this move gives check
-					&& generator.stage() >= MovegenStage::Quiet)
-				{
-					auto lmr = baseLmr;
-
-					if (!pv)
-						++lmr;
-
-					reduction = std::clamp(lmr, 0, depth - 2);
-				}
-
 				const auto newDepth = depth - 1 + extension;
 
 				if (pv && legalMoves == 1)
-					score = -search(data, newDepth - reduction, ply + 1, moveStackIdx + 1, -beta, -alpha, false);
+					score = -search(data, newDepth, ply + 1, moveStackIdx + 1, -beta, -alpha, false);
 				else
 				{
+					i32 reduction{};
+
+					// lmr
+					if (depth >= minLmrDepth()
+						&& legalMoves >= minLmrMoves
+						&& generator.stage() >= MovegenStage::Quiet)
+					{
+						auto lmr = baseLmr;
+
+						if (!pv)
+							++lmr;
+
+						if (pos.isCheck()) // this move gives check
+							--lmr;
+
+						reduction = std::clamp(lmr, 0, depth - 2);
+					}
+
 					score = -search(data, newDepth - reduction, ply + 1, moveStackIdx + 1, -alpha - 1, -alpha, true);
 
 					if (score > alpha && reduction > 0)
@@ -686,6 +700,9 @@ namespace polaris::search
 				}
 			}
 
+			if (root && data.id == 0)
+				m_limiter->updateMoveNodes(move, data.search.nodes - prevNodes);
+
 			if (score > bestScore)
 			{
 				best = move;
@@ -695,15 +712,27 @@ namespace polaris::search
 				{
 					if (score >= beta)
 					{
+						const auto adjustment = depth * depth + depth - 1;
+
+						auto *prevContEntry = (quietOrLosing && prevMove)
+							? &data.history.contEntry(prevMove) : nullptr;
+						auto *prevPrevContEntry = (!noisy && prevPrevMove)
+							? &data.history.contEntry(prevPrevMove) : nullptr;
+
 						if (quietOrLosing)
 						{
 							stack.killer = move;
+							if (prevMove)
+								data.history.entry(prevMove).countermove = move;
+						}
 
-							const auto adjustment = depth * depth + depth - 1;
-
-							auto *prevContEntry = prevMove ? &data.history.contEntry(prevMove) : nullptr;
-							auto *prevPrevContEntry = prevPrevMove ? &data.history.contEntry(prevPrevMove) : nullptr;
-
+						if (noisy)
+							updateHistoryScore(
+								data.history.captureScore(stack.currMove, captured),
+								adjustment
+							);
+						else
+						{
 							updateHistoryScore(data.history.entry(stack.currMove).score, adjustment);
 
 							if (prevContEntry)
@@ -713,16 +742,21 @@ namespace polaris::search
 
 							for (const auto prevQuiet : moveStack.quietsTried)
 							{
-								updateHistoryScore(data.history.entry(prevQuiet).score,  -adjustment);
+								updateHistoryScore(data.history.entry(prevQuiet).score, -adjustment);
 
 								if (prevContEntry)
 									updateHistoryScore(prevContEntry->score(prevQuiet), -adjustment);
 								if (prevPrevContEntry)
 									updateHistoryScore(prevPrevContEntry->score(prevQuiet), -adjustment);
 							}
+						}
 
-							if (prevMove)
-								data.history.entry(prevMove).countermove = move;
+						for (const auto [prevNoisy, prevCaptured] : moveStack.noisiesTried)
+						{
+							updateHistoryScore(
+								data.history.captureScore(prevNoisy, prevCaptured),
+								-adjustment
+							);
 						}
 
 						entryType = EntryType::Beta;
@@ -734,8 +768,9 @@ namespace polaris::search
 				}
 			}
 
-			if (quietOrLosing)
-				moveStack.quietsTried.push(stack.currMove);
+			if (noisy)
+				moveStack.noisiesTried.push({stack.currMove, captured});
+			else moveStack.quietsTried.push(stack.currMove);
 		}
 
 		if (legalMoves == 0)
@@ -758,7 +793,7 @@ namespace polaris::search
 		return bestScore;
 	}
 
-	Score Searcher::qsearch(ThreadData &data, i32 ply, u32 moveStackIdx, Score alpha, Score beta)
+	auto Searcher::qsearch(ThreadData &data, i32 ply, u32 moveStackIdx, Score alpha, Score beta) -> Score
 	{
 		if (shouldStop(data.search, false))
 			return beta;
@@ -782,25 +817,23 @@ namespace polaris::search
 
 		const auto us = pos.toMove();
 
-		auto &stack = data.stack[ply];
-
-		if (ply + 1 > data.search.seldepth)
-			data.search.seldepth = ply + 1;
+		if (ply > data.search.seldepth)
+			data.search.seldepth = ply;
 
 		ProbedTTableEntry entry{};
-		auto hashMove = NullMove;
+		auto ttMove = NullMove;
 
 		if (m_table.probe(entry, pos.key(), 0, ply, alpha, beta))
 			return entry.score;
 		else if (entry.move && pos.isPseudolegal(entry.move))
-			hashMove = entry.move;
+			ttMove = entry.move;
 
 		auto best = NullMove;
 		auto bestScore = staticEval;
 
 		auto entryType = EntryType::Alpha;
 
-		QMoveGenerator generator{pos, NullMove, data.moveStack[moveStackIdx].moves, hashMove};
+		QMoveGenerator generator{pos, NullMove, data.moveStack[moveStackIdx].moves, ttMove};
 
 		while (const auto move = generator.next())
 		{
@@ -838,25 +871,30 @@ namespace polaris::search
 		return bestScore;
 	}
 
-	void Searcher::report(const ThreadData &data, i32 depth,
-		Move move, f64 time, Score score, Score alpha, Score beta, bool tb)
+	auto Searcher::report(const ThreadData &data, i32 depth,
+		Move move, f64 time, Score score, Score alpha, Score beta, bool tbRoot) -> void
 	{
 		usize nodes = 0;
 
-		// technically a potential race but it doesn't matter
-		for (const auto &thread : m_threads)
+		// in tb positions at root we have searched 0 nodes
+		if (!tbRoot)
 		{
-			nodes += thread.search.nodes;
+			// technically a potential race but it doesn't matter
+			for (const auto &thread: m_threads)
+			{
+				nodes += thread.search.nodes;
+			}
 		}
 
-		const auto ms = time < 0.0 ? 0 : static_cast<usize>(time * 1000.0);
-		const auto nps = time < 0.0 ? 0 : static_cast<usize>(static_cast<f64>(nodes) / time);
+		const auto ms = tbRoot ? 0 : static_cast<usize>(time * 1000.0);
+		const auto nps = tbRoot ? 0 : static_cast<usize>(static_cast<f64>(nodes) / time);
 
 		std::cout << "info depth " << depth << " seldepth " << data.search.seldepth
 			<< " time " << ms << " nodes " << nodes << " nps " << nps << " score ";
 
 		score = std::clamp(score, alpha, beta);
 
+		// mates
 		if (std::abs(score) > ScoreTbWin)
 		{
 			if (score > 0)
@@ -874,15 +912,20 @@ namespace polaris::search
 
 		if (g_opts.syzygyEnabled)
 		{
-			usize tbhits = 0;
-
-			// technically a potential race but it doesn't matter
-			for (const auto &thread : m_threads)
+			if (tbRoot)
+				std::cout << " tbhits 1";
+			else
 			{
-				tbhits += thread.search.tbhits;
-			}
+				usize tbhits = 0;
 
-			std::cout << " tbhits " << tbhits;
+				// technically a potential race but it doesn't matter
+				for (const auto &thread: m_threads)
+				{
+					tbhits += thread.search.tbhits;
+				}
+
+				std::cout << " tbhits " << tbhits;
+			}
 		}
 
 		std::cout << " pv " << uci::moveToString(move);

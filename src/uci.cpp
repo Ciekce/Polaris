@@ -43,9 +43,7 @@
 #include "bench.h"
 #include "opts.h"
 #include "tunable.h"
-#include "syzygy/tbprobe.h"
-
-#include "hash.h"
+#include "3rdparty/fathom/tbprobe.h"
 
 namespace polaris
 {
@@ -69,27 +67,27 @@ namespace polaris
 			UciHandler() = default;
 			~UciHandler();
 
-			i32 run();
+			auto run() -> i32;
 
 		private:
-			void handleUci();
-			void handleUcinewgame();
-			void handleIsready();
-			void handlePosition(const std::vector<std::string> &tokens);
-			void handleGo(const std::vector<std::string> &tokens);
-			void handleStop();
-			void handleSetoption(const std::vector<std::string> &tokens);
+			auto handleUci() -> void;
+			auto handleUcinewgame() -> void;
+			auto handleIsready() -> void;
+			auto handlePosition(const std::vector<std::string> &tokens) -> void;
+			auto handleGo(const std::vector<std::string> &tokens) -> void;
+			auto handleStop() -> void;
+			auto handleSetoption(const std::vector<std::string> &tokens) -> void;
 			// V ======= NONSTANDARD ======= V
-			void handleD();
-			void handleCheckers();
-			void handleEval();
-			void handleRegen();
-			void handleMoves();
-			void handlePerft(const std::vector<std::string> &tokens);
-			void handleSplitperft(const std::vector<std::string> &tokens);
-			void handleBench(const std::vector<std::string> &tokens);
+			auto handleD() -> void;
+			auto handleCheckers() -> void;
+			auto handleEval() -> void;
+			auto handleRegen() -> void;
+			auto handleMoves() -> void;
+			auto handlePerft(const std::vector<std::string> &tokens) -> void;
+			auto handleSplitperft(const std::vector<std::string> &tokens) -> void;
+			auto handleBench(const std::vector<std::string> &tokens) -> void;
 #ifndef NDEBUG
-			void handleVerify();
+			auto handleVerify() -> void;
 #endif
 
 			bool m_fathomInitialized{false};
@@ -110,7 +108,7 @@ namespace polaris
 				tb_free();
 		}
 
-		i32 UciHandler::run()
+		auto UciHandler::run() -> i32
 		{
 			for (std::string line{}; std::getline(std::cin, line);)
 			{
@@ -163,7 +161,7 @@ namespace polaris
 			return 0;
 		}
 
-		void UciHandler::handleUci()
+		auto UciHandler::handleUci() -> void
 		{
 			static const GlobalOptions defaultOpts{};
 
@@ -192,19 +190,19 @@ namespace polaris
 			std::cout << "uciok" << std::endl;
 		}
 
-		void UciHandler::handleUcinewgame()
+		auto UciHandler::handleUcinewgame() -> void
 		{
 			if (m_searcher.searching())
 				std::cerr << "still searching" << std::endl;
 			else m_searcher.newGame();
 		}
 
-		void UciHandler::handleIsready()
+		auto UciHandler::handleIsready() -> void
 		{
 			std::cout << "readyok" << std::endl;
 		}
 
-		void UciHandler::handlePosition(const std::vector<std::string> &tokens)
+		auto UciHandler::handlePosition(const std::vector<std::string> &tokens) -> void
 		{
 			if (m_searcher.searching())
 				std::cerr << "still searching" << std::endl;
@@ -246,7 +244,7 @@ namespace polaris
 			}
 		}
 
-		void UciHandler::handleGo(const std::vector<std::string> &tokens)
+		auto UciHandler::handleGo(const std::vector<std::string> &tokens) -> void
 		{
 			if (m_searcher.searching())
 				std::cerr << "already searching" << std::endl;
@@ -395,7 +393,7 @@ namespace polaris
 			}
 		}
 
-		void UciHandler::handleStop()
+		auto UciHandler::handleStop() -> void
 		{
 			if (!m_searcher.searching())
 				std::cerr << "not searching" << std::endl;
@@ -403,7 +401,7 @@ namespace polaris
 		}
 
 		//TODO refactor
-		void UciHandler::handleSetoption(const std::vector<std::string> &tokens)
+		auto UciHandler::handleSetoption(const std::vector<std::string> &tokens) -> void
 		{
 			usize i = 1;
 
@@ -640,7 +638,7 @@ namespace polaris
 			}
 		}
 
-		void UciHandler::handleD()
+		auto UciHandler::handleD() -> void
 		{
 			std::cout << '\n';
 
@@ -674,7 +672,7 @@ namespace polaris
 			std::cout << std::endl;
 		}
 
-		void UciHandler::handleEval()
+		auto UciHandler::handleEval() -> void
 		{
 			eval::nnue::NnueState state{};
 			state.reset(m_pos.boards());
@@ -682,18 +680,18 @@ namespace polaris
 			std::cout << std::endl;
 		}
 
-		void UciHandler::handleCheckers()
+		auto UciHandler::handleCheckers() -> void
 		{
 			std::cout << '\n';
 			printBitboard(std::cout, m_pos.checkers());
 		}
 
-		void UciHandler::handleRegen()
+		auto UciHandler::handleRegen() -> void
 		{
 			m_pos.regen();
 		}
 
-		void UciHandler::handleMoves()
+		auto UciHandler::handleMoves() -> void
 		{
 			ScoredMoveList moves{};
 			generateAll(moves, m_pos);
@@ -708,7 +706,7 @@ namespace polaris
 			std::cout << std::endl;
 		}
 
-		void UciHandler::handlePerft(const std::vector<std::string> &tokens)
+		auto UciHandler::handlePerft(const std::vector<std::string> &tokens) -> void
 		{
 			u32 depth = 6;
 
@@ -724,7 +722,7 @@ namespace polaris
 			perft(m_pos, static_cast<i32>(depth));
 		}
 
-		void UciHandler::handleSplitperft(const std::vector<std::string> &tokens)
+		auto UciHandler::handleSplitperft(const std::vector<std::string> &tokens) -> void
 		{
 			u32 depth = 6;
 
@@ -740,7 +738,7 @@ namespace polaris
 			splitPerft(m_pos, static_cast<i32>(depth));
 		}
 
-		void UciHandler::handleBench(const std::vector<std::string> &tokens)
+		auto UciHandler::handleBench(const std::vector<std::string> &tokens) -> void
 		{
 			if (m_searcher.searching())
 			{
@@ -797,7 +795,7 @@ namespace polaris
 		}
 
 #ifndef NDEBUG
-		void UciHandler::handleVerify()
+		auto UciHandler::handleVerify() -> void
 		{
 			if (m_pos.verify())
 				std::cout << "info string boards and keys ok" << std::endl;
@@ -822,7 +820,7 @@ namespace polaris
 			return handler.run();
 		}
 
-		std::string moveToString(Move move)
+		auto moveToString(Move move) -> std::string
 		{
 			if (!move)
 				return "0000";
@@ -851,7 +849,7 @@ namespace polaris
 		}
 
 #ifndef NDEBUG
-		std::string moveAndTypeToString(Move move)
+		auto moveAndTypeToString(Move move) -> std::string
 		{
 			if (!move)
 				return "0000";

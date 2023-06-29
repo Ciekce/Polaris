@@ -24,6 +24,7 @@
 #include <vector>
 #include <stack>
 #include <optional>
+#include <utility>
 
 #include "boards.h"
 #include "../move.h"
@@ -116,10 +117,10 @@ namespace polaris
 		Position(Position &&) = default;
 
 		template <bool UpdateNnue = true, bool StateHistory = true>
-		bool applyMoveUnchecked(Move move, eval::nnue::NnueState *nnueState, TTable *prefetchTt = nullptr);
+		auto applyMoveUnchecked(Move move, eval::nnue::NnueState *nnueState, TTable *prefetchTt = nullptr) -> bool;
 
 		template <bool UpdateNnue = true>
-		[[nodiscard]] inline HistoryGuard<UpdateNnue> applyMove(Move move,
+		[[nodiscard]] inline auto applyMove(Move move,
 			eval::nnue::NnueState *nnueState, TTable *prefetchTt = nullptr)
 		{
 			return HistoryGuard<UpdateNnue>{*this, UpdateNnue ? nnueState : nullptr,
@@ -127,16 +128,16 @@ namespace polaris
 		}
 
 		template <bool UpdateNnue = true>
-		void popMove(eval::nnue::NnueState *nnueState);
+		auto popMove(eval::nnue::NnueState *nnueState) -> void;
 
-		[[nodiscard]] bool isPseudolegal(Move move) const;
+		[[nodiscard]] auto isPseudolegal(Move move) const -> bool;
 
 	private:
-		[[nodiscard]] inline auto &currState() { return m_states.back(); }
-		[[nodiscard]] inline const auto &currState() const { return m_states.back(); }
+		[[nodiscard]] inline auto currState() -> auto & { return m_states.back(); }
+		[[nodiscard]] inline auto currState() const -> const auto & { return m_states.back(); }
 
 	public:
-		[[nodiscard]] inline const auto &boards() const { return currState().boards; }
+		[[nodiscard]] inline auto boards() const -> const auto & { return currState().boards; }
 
 		[[nodiscard]] inline auto toMove() const
 		{
@@ -148,7 +149,7 @@ namespace polaris
 			return m_blackToMove ? Color::White : Color::Black;
 		}
 
-		[[nodiscard]] inline const auto &castlingRooks() const { return currState().castlingRooks; }
+		[[nodiscard]] inline auto castlingRooks() const -> const auto & { return currState().castlingRooks; }
 
 		[[nodiscard]] inline auto enPassant() const { return currState().enPassant; }
 
@@ -164,7 +165,7 @@ namespace polaris
 			return (score.midgame() * state.phase + score.endgame() * (24 - state.phase)) / 24;
 		}
 
-		[[nodiscard]] inline Bitboard allAttackersTo(Square square, Bitboard occupancy) const
+		[[nodiscard]] inline auto allAttackersTo(Square square, Bitboard occupancy) const
 		{
 			const auto &boards = this->boards();
 
@@ -190,7 +191,7 @@ namespace polaris
 			return attackers;
 		}
 
-		[[nodiscard]] inline Bitboard attackersTo(Square square, Color attacker) const
+		[[nodiscard]] inline auto attackersTo(Square square, Color attacker) const
 		{
 			const auto &boards = this->boards();
 
@@ -218,7 +219,7 @@ namespace polaris
 			return attackers;
 		}
 
-		[[nodiscard]] inline bool isAttacked(const PositionBoards &boards, Square square, Color attacker) const
+		[[nodiscard]] inline auto isAttacked(const PositionBoards &boards, Square square, Color attacker) const
 		{
 			const auto occ = boards.occupancy();
 
@@ -247,12 +248,12 @@ namespace polaris
 			return false;
 		}
 
-		[[nodiscard]] inline bool isAttacked(Square square, Color attacker) const
+		[[nodiscard]] inline auto isAttacked(Square square, Color attacker) const
 		{
 			return isAttacked(boards(), square, attacker);
 		}
 
-		[[nodiscard]] inline bool anyAttacked(Bitboard squares, Color attacker) const
+		[[nodiscard]] inline auto anyAttacked(Bitboard squares, Color attacker) const
 		{
 			while (squares)
 			{
@@ -296,7 +297,7 @@ namespace polaris
 
 		[[nodiscard]] inline auto checkers() const { return currState().checkers; }
 
-		[[nodiscard]] inline bool isDrawn(bool threefold) const
+		[[nodiscard]] inline auto isDrawn(bool threefold) const
 		{
 			// TODO handle mate
 			if (m_states.back().halfmove >= 100)
@@ -336,12 +337,12 @@ namespace polaris
 			return false;
 		}
 
-		[[nodiscard]] inline Move lastMove() const
+		[[nodiscard]] inline auto lastMove() const
 		{
 			return m_states.empty() ? NullMove : currState().lastMove;
 		}
 
-		[[nodiscard]] inline Piece captureTarget(Move move) const
+		[[nodiscard]] inline auto captureTarget(Move move) const
 		{
 			const auto type = move.type();
 
@@ -352,7 +353,7 @@ namespace polaris
 			else return boards().pieceAt(move.dst());
 		}
 
-		[[nodiscard]] inline bool isNoisy(Move move) const
+		[[nodiscard]] inline auto isNoisy(Move move) const
 		{
 			const auto type = move.type();
 
@@ -362,9 +363,24 @@ namespace polaris
 					|| boards().pieceAt(move.dst()) != Piece::None);
 		}
 
-		[[nodiscard]] std::string toFen() const;
+		[[nodiscard]] inline auto noisyCapturedPiece(Move move) const -> std::pair<bool, Piece>
+		{
+			const auto type = move.type();
 
-		[[nodiscard]] inline bool operator==(const Position &other) const
+			if (type == MoveType::Castling)
+				return {false, Piece::None};
+			else if (type == MoveType::EnPassant)
+				return {true, colorPiece(BasePiece::Pawn, toMove())};
+			else
+			{
+				const auto captured = boards().pieceAt(move.dst());
+				return {captured != Piece::None || move.target() == BasePiece::Queen, captured};
+			}
+		}
+
+		[[nodiscard]] auto toFen() const -> std::string;
+
+		[[nodiscard]] inline auto operator==(const Position &other) const
 		{
 			const auto &ourState = currState();
 			const auto &theirState = other.m_states.back();
@@ -377,7 +393,7 @@ namespace polaris
 				&& m_fullmove == other.m_fullmove;
 		}
 
-		[[nodiscard]] inline bool deepEquals(const Position &other) const
+		[[nodiscard]] inline auto deepEquals(const Position &other) const
 		{
 			return *this == other
 				&& currState().kings == other.m_states.back().kings
@@ -388,42 +404,43 @@ namespace polaris
 		}
 
 		template <bool EnPassantFromMoves = false>
-		void regen();
+		auto regen() -> void;
 
 #ifndef NDEBUG
-		void printHistory(Move last = NullMove);
+		auto printHistory(Move last = NullMove) -> void;
 
 		template <bool HasHistory = true>
-		bool verify();
+		auto verify() -> bool;
 #endif
 
-		[[nodiscard]] Move moveFromUci(const std::string &move) const;
+		[[nodiscard]] auto moveFromUci(const std::string &move) const -> Move;
 
-		Position &operator=(const Position &) = default;
-		Position &operator=(Position &&) = default;
+		auto operator=(const Position &) -> Position & = default;
+		auto operator=(Position &&) -> Position & = default;
 
-		[[nodiscard]] static Position starting();
-		[[nodiscard]] static std::optional<Position> fromFen(const std::string &fen);
+		[[nodiscard]] static auto starting() -> Position;
+		[[nodiscard]] static auto fromFen(const std::string &fen) -> std::optional<Position>;
 
 	private:
 		template <bool UpdateKeys = true, bool UpdateNnue = true>
-		void setPiece(Piece piece, Square square, eval::nnue::NnueState *nnueState);
+		auto setPiece(Piece piece, Square square, eval::nnue::NnueState *nnueState) -> void;
 		template <bool UpdateKeys = true, bool UpdateNnue = true>
-		void removePiece(Piece piece, Square square, eval::nnue::NnueState *nnueState);
+		auto removePiece(Piece piece, Square square, eval::nnue::NnueState *nnueState) -> void;
 		template <bool UpdateKeys = true, bool UpdateNnue = true>
-		void movePieceNoCap(Piece piece, Square src, Square dst, eval::nnue::NnueState *nnueState);
+		auto movePieceNoCap(Piece piece, Square src, Square dst, eval::nnue::NnueState *nnueState) -> void;
 
 		template <bool UpdateKeys = true, bool UpdateNnue = true>
-		[[nodiscard]] Piece movePiece(Piece piece, Square src, Square dst, eval::nnue::NnueState *nnueState);
+		[[nodiscard]] auto movePiece(Piece piece, Square src, Square dst, eval::nnue::NnueState *nnueState) -> Piece;
 
 		template <bool UpdateKeys = true, bool UpdateNnue = true>
-		Piece promotePawn(Piece pawn, Square src, Square dst, BasePiece target, eval::nnue::NnueState *nnueState);
+		auto promotePawn(Piece pawn, Square src, Square dst,
+			BasePiece target, eval::nnue::NnueState *nnueState) -> Piece;
 		template <bool UpdateKeys = true, bool UpdateNnue = true>
-		void castle(Piece king, Square kingSrc, Square rookSrc, eval::nnue::NnueState *nnueState);
+		auto castle(Piece king, Square kingSrc, Square rookSrc, eval::nnue::NnueState *nnueState) -> void;
 		template <bool UpdateKeys = true, bool UpdateNnue = true>
-		Piece enPassant(Piece pawn, Square src, Square dst, eval::nnue::NnueState *nnueState);
+		auto enPassant(Piece pawn, Square src, Square dst, eval::nnue::NnueState *nnueState) -> Piece;
 
-		[[nodiscard]] inline Bitboard calcCheckers() const
+		[[nodiscard]] inline auto calcCheckers() const
 		{
 			const auto color = toMove();
 			const auto &state = currState();
@@ -445,5 +462,5 @@ namespace polaris
 		m_pos.popMove<UpdateNnue>(m_nnueState);
 	}
 
-	[[nodiscard]] Square squareFromString(const std::string &str);
+	[[nodiscard]] auto squareFromString(const std::string &str) -> Square;
 }

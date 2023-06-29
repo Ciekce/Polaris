@@ -21,6 +21,7 @@
 #include "types.h"
 
 #include <string>
+#include <utility>
 
 #include "core.h"
 #include "move.h"
@@ -30,9 +31,9 @@ namespace polaris::uci
 {
 	i32 run();
 
-	[[nodiscard]] std::string moveToString(Move move);
+	[[nodiscard]] auto moveToString(Move move) -> std::string;
 
 #ifndef NDEBUG
-	[[nodiscard]] std::string moveAndTypeToString(Move move);
+	[[nodiscard]] auto moveAndTypeToString(Move move) -> std::string;
 #endif
 }

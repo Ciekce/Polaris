@@ -22,7 +22,6 @@
 
 #include "move.h"
 #include "position/position.h"
-#include "eval/material.h"
 #include "see.h"
 #include "history.h"
 
@@ -36,16 +35,16 @@ namespace polaris
 
 	using ScoredMoveList = StaticVector<ScoredMove, DefaultMoveListCapacity>;
 
-	void generateNoisy(ScoredMoveList &noisy, const Position &pos);
-	void generateQuiet(ScoredMoveList &quiet, const Position &pos);
+	auto generateNoisy(ScoredMoveList &noisy, const Position &pos) -> void;
+	auto generateQuiet(ScoredMoveList &quiet, const Position &pos) -> void;
 
-	void generateAll(ScoredMoveList &dst, const Position &pos);
+	auto generateAll(ScoredMoveList &dst, const Position &pos) -> void;
 
 	struct MovegenStage
 	{
 		static constexpr i32 Start = 0;
-		static constexpr i32 Hash = Start + 1;
-		static constexpr i32 GoodNoisy = Hash + 1;
+		static constexpr i32 TtMove = Start + 1;
+		static constexpr i32 GoodNoisy = TtMove + 1;
 		static constexpr i32 Killer = GoodNoisy + 1;
 		static constexpr i32 Countermove = Killer + 1;
 		static constexpr i32 Quiet = Countermove + 1;
@@ -57,11 +56,11 @@ namespace polaris
 	class MoveGenerator
 	{
 	public:
-		MoveGenerator(const Position &pos, Move killer, ScoredMoveList &moves, Move hashMove,
+		MoveGenerator(const Position &pos, Move killer, ScoredMoveList &moves, Move ttMove,
 			HistoryMove prevMove = {}, HistoryMove prevPrevMove = {}, const HistoryTable *history = nullptr)
 			: m_pos{pos},
 			  m_moves{moves},
-			  m_hashMove{hashMove},
+			  m_ttMove{ttMove},
 			  m_prevMove{prevMove},
 			  m_prevPrevMove{prevPrevMove},
 			  m_killer{killer},
@@ -73,7 +72,7 @@ namespace polaris
 
 		~MoveGenerator() = default;
 
-		[[nodiscard]] inline Move next()
+		[[nodiscard]] inline auto next()
 		{
 			while (true)
 			{
@@ -83,9 +82,9 @@ namespace polaris
 
 					switch (m_stage)
 					{
-					case MovegenStage::Hash:
-						if (m_hashMove)
-							return m_hashMove;
+					case MovegenStage::TtMove:
+						if (m_ttMove)
+							return m_ttMove;
 						break;
 
 					case MovegenStage::GoodNoisy:
@@ -96,7 +95,7 @@ namespace polaris
 
 					case MovegenStage::Killer:
 						if (m_killer
-							&& m_killer != m_hashMove
+							&& m_killer != m_ttMove
 							&& m_pos.isPseudolegal(m_killer))
 							return m_killer;
 						break;
@@ -106,7 +105,7 @@ namespace polaris
 						{
 							m_countermove = m_history->entry(m_prevMove).countermove;
 							if (m_countermove
-								&& m_countermove != m_hashMove
+								&& m_countermove != m_ttMove
 								&& m_countermove != m_killer
 								&& m_pos.isPseudolegal(m_countermove))
 								return m_countermove;
@@ -130,7 +129,7 @@ namespace polaris
 
 				const auto move = findNext();
 
-				if (move != m_hashMove
+				if (move != m_ttMove
 					&& move != m_killer
 					&& move != m_countermove)
 					return move;
@@ -140,14 +139,22 @@ namespace polaris
 		[[nodiscard]] inline auto stage() const { return m_stage; }
 
 	private:
-		static constexpr auto PromoScores = std::array {
-			 1, // knight
-			-2, // bishop
-			-1, // rook
-			 2  // queen
+		static constexpr auto Mvv = std::array {
+			10, // pawn
+			38, // knight
+			40, // bishop
+			50, // rook
+			110 // queen
 		};
 
-		inline Move findNext()
+		static constexpr auto PromoScores = std::array {
+			-1, // knight
+			-3, // bishop
+			-2, // rook
+			 0  // queen
+		};
+
+		inline auto findNext()
 		{
 			if (m_stage == MovegenStage::GoodNoisy)
 				return m_moves[m_idx++].move;
@@ -170,7 +177,7 @@ namespace polaris
 			return m_moves[m_idx++].move;
 		}
 
-		inline void scoreNoisy()
+		inline auto scoreNoisy()
 		{
 			const auto &boards = m_pos.boards();
 
@@ -178,23 +185,28 @@ namespace polaris
 			{
 				auto &move = m_moves[i];
 
-				const auto srcValue = eval::pieceValue(boards.pieceAt(move.move.src())).midgame();
-				// 0 for non-capture promo
-				const auto dstValue = move.move.type() == MoveType::EnPassant
-					? eval::values::Pawn.midgame()
-					: eval::pieceValue(boards.pieceAt(move.move.dst())).midgame();
+				const auto captured = move.move.type() == MoveType::EnPassant
+					? colorPiece(BasePiece::Pawn, m_pos.opponent())
+					: boards.pieceAt(move.move.dst());
 
-				move.score = (dstValue - srcValue) * 2000 + dstValue;
+				if (m_history)
+				{
+					const auto historyMove = HistoryMove::from(boards, move.move);
+					move.score = m_history->captureScore(historyMove, captured);
+				}
 
-				if (move.move.type() == MoveType::Promotion)
-					move.score += PromoScores[move.move.targetIdx()] * 2000 * 2000;
+				if (captured != Piece::None)
+					move.score += Mvv[static_cast<i32>(basePiece(captured))];
 
-				if (dstValue > 0 && !see::see(m_pos, move.move))
-					move.score -= 8 * 2000 * 2000;
+				if ((captured != Piece::None || move.move.target() == BasePiece::Queen)
+					&& see::see(m_pos, move.move))
+					move.score += 8 * 2000 * 2000;
+				else if (move.move.type() == MoveType::Promotion)
+					move.score += PromoScores[move.move.targetIdx()] * 2000;
 			}
 		}
 
-		inline void scoreQuiet()
+		inline auto scoreQuiet()
 		{
 			const auto &boards = m_pos.boards();
 
@@ -221,7 +233,7 @@ namespace polaris
 			}
 		}
 
-		inline void genNoisy()
+		inline auto genNoisy()
 		{
 			generateNoisy(m_moves, m_pos);
 			scoreNoisy();
@@ -235,11 +247,11 @@ namespace polaris
 
 			m_goodNoisyEnd = std::find_if(m_moves.begin() + m_idx, m_moves.end(), [](const auto &v)
 			{
-				return v.score < -4 * 2000 * 2000;
+				return v.score < 4 * 2000 * 2000;
 			}) - m_moves.begin();
 		}
 
-		inline void genQuiet()
+		inline auto genQuiet()
 		{
 			generateQuiet(m_moves, m_pos);
 			scoreQuiet();
@@ -253,7 +265,7 @@ namespace polaris
 
 		ScoredMoveList &m_moves;
 
-		Move m_hashMove;
+		Move m_ttMove;
 
 		HistoryMove m_prevMove;
 		HistoryMove m_prevPrevMove;

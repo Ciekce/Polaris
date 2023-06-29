@@ -43,17 +43,17 @@ namespace polaris
 			return m_colors[static_cast<i32>(color)];
 		}
 
-		[[nodiscard]] inline Bitboard &forPiece(BasePiece piece)
+		[[nodiscard]] inline auto forPiece(BasePiece piece) -> Bitboard &
 		{
 			return m_boards[static_cast<i32>(piece)];
 		}
 
-		[[nodiscard]] inline Bitboard forPiece(BasePiece piece) const
+		[[nodiscard]] inline auto forPiece(BasePiece piece) const
 		{
 			return m_boards[static_cast<i32>(piece)];
 		}
 
-		[[nodiscard]] inline Bitboard forPiece(BasePiece piece, Color c) const
+		[[nodiscard]] inline auto forPiece(BasePiece piece, Color c) const
 		{
 			return m_boards[static_cast<i32>(piece)] & forColor(c);
 		}
@@ -295,7 +295,7 @@ namespace polaris
 
 		[[nodiscard]] inline auto pieceAt(u32 rank, u32 file) const { return pieceAt(toSquare(rank, file)); }
 
-		inline void setPiece(Square square, Piece piece)
+		inline auto setPiece(Square square, Piece piece)
 		{
 			const auto mask = Bitboard::fromSquare(square);
 
@@ -303,7 +303,7 @@ namespace polaris
 			forColor(pieceColor(piece)) ^= mask;
 		}
 
-		inline void movePiece(Square src, Square dst, Piece piece)
+		inline auto movePiece(Square src, Square dst, Piece piece)
 		{
 			const auto mask = Bitboard::fromSquare(src) | Bitboard::fromSquare(dst);
 
@@ -311,7 +311,7 @@ namespace polaris
 			forColor(pieceColor(piece)) ^= mask;
 		}
 
-		inline void moveAndChangePiece(Square src, Square dst, Piece moving, BasePiece target)
+		inline auto moveAndChangePiece(Square src, Square dst, Piece moving, BasePiece target)
 		{
 			forPiece(basePiece(moving))[src] = false;
 			forPiece(target)[dst] = true;
@@ -320,13 +320,13 @@ namespace polaris
 			forColor(pieceColor(moving)) ^= mask;
 		}
 
-		inline void removePiece(Square square, Piece piece)
+		inline auto removePiece(Square square, Piece piece)
 		{
 			forPiece(basePiece(piece))[square] = false;
 			forColor(pieceColor(piece))[square] = false;
 		}
 
-		[[nodiscard]] inline bool operator==(const PositionBoards &other) const = default;
+		[[nodiscard]] inline auto operator==(const PositionBoards &other) const -> bool = default;
 
 	private:
 		std::array<Bitboard, 2> m_colors{};

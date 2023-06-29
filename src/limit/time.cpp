@@ -25,7 +25,7 @@ namespace polaris::limit
 	MoveTimeLimiter::MoveTimeLimiter(i64 time, i64 overhead)
 		: m_maxTime{util::g_timer.time() + static_cast<f64>(std::max(I64(1), time - overhead)) / 1000.0} {}
 
-	bool MoveTimeLimiter::stop(const search::SearchData &data, bool allowSoftTimeout) const
+	auto MoveTimeLimiter::stop(const search::SearchData &data, bool allowSoftTimeout) const -> bool
 	{
 		return data.depth > 2
 			&& data.nodes > 0
@@ -41,29 +41,34 @@ namespace polaris::limit
 		if (toGo == 0)
 			toGo = 25;
 
-		const auto baseTime = limit / static_cast<f64>(toGo) + increment * 3 / 4;
+		const auto baseTime = limit / static_cast<f64>(toGo) + increment * 0.75;
 
 		m_maxTime  = limit / 2.0;
 		m_softTime = std::min(baseTime * 0.6, m_maxTime);
 	}
 
-	void TimeManager::update(const search::SearchData &data, bool stableBestMove)
+	auto TimeManager::update(const search::SearchData &data, Move bestMove, usize totalNodes) -> void
 	{
-		if (data.depth < 4)
-			return;
+		const auto bestMoveFraction = static_cast<f64>(m_moveNodeCounts[bestMove.srcIdx()][bestMove.dstIdx()])
+			/ static_cast<f64>(totalNodes);
+		const auto moveNodeScale = (1.5 - bestMoveFraction) * 1.35;
 
-		//TODO allocate more time for unstable best moves
+		m_scale = moveNodeScale;
 	}
 
-	bool TimeManager::stop(const search::SearchData &data, bool allowSoftTimeout) const
+	auto TimeManager::updateMoveNodes(Move move, usize nodes) -> void
 	{
-		if (data.depth < 5)
-			return false;
+		m_moveNodeCounts[move.srcIdx()][move.dstIdx()] += nodes;
+	}
 
-		if (data.nodes == 0 || (!allowSoftTimeout && (data.nodes % 1024) != 0))
+	auto TimeManager::stop(const search::SearchData &data, bool allowSoftTimeout) const -> bool
+	{
+		if (data.depth < 5
+			|| data.nodes == 0
+			|| (!allowSoftTimeout && (data.nodes % 1024) != 0))
 			return false;
 
 		const auto elapsed = util::g_timer.time() - m_startTime;
-		return elapsed > m_maxTime || (allowSoftTimeout && elapsed > m_softTime);
+		return elapsed > m_maxTime || (allowSoftTimeout && elapsed > m_softTime * m_scale);
 	}
 }

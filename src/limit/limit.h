@@ -29,8 +29,9 @@ namespace polaris::limit
 	public:
 		virtual ~ISearchLimiter() = default;
 
-		virtual void update(const search::SearchData &data, bool stableBestMove) {}
+		virtual auto update(const search::SearchData &data, Move bestMove, usize totalNodes) -> void {}
+		virtual auto updateMoveNodes(Move move, usize nodes) -> void {}
 
-		[[nodiscard]] virtual bool stop(const search::SearchData &data, bool allowSoftTimeout) const = 0;
+		[[nodiscard]] virtual auto stop(const search::SearchData &data, bool allowSoftTimeout) const -> bool = 0;
 	};
 }
