@@ -33,7 +33,7 @@
 #endif
 
 //TODO (maybe) this path only works for cmake
-INCBIN(nnue, "../src/eval/gemstone.nnue");
+INCBIN(nnue, "../src/eval/Aurora-20581290fd.nnue");
 
 namespace polaris::eval::nnue
 {

@@ -12,7 +12,7 @@
 </div>
 
 a work-in-progress UCI chess and [chess960](https://en.wikipedia.org/wiki/Fischer_random_chess) engine  
-this branch is an experiment for fun, using [Viridithas](https://github.com/cosmobobak/viridithas)' current network (`gemstone`) and inference  
+this branch is an experiment using [StockDory](https://github.com/TheBlackPlague/StockDory)'s current network (`Aurora`)  
 due to the radically different eval, WDL normalisation and output are removed :3
 
 ## Strength

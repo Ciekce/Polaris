@@ -39,7 +39,7 @@ set(POLARIS_BMI2_SRC src/attacks/bmi2/data.h src/attacks/bmi2/attacks.h src/atta
 set(POLARIS_NON_BMI2_SRC src/attacks/black_magic/data.h src/attacks/black_magic/attacks.h src/attacks/black_magic/attacks.cpp)
 
 add_executable(polaris-native ${POLARIS_COMMON_SRC} ${POLARIS_BMI2_SRC} ${POLARIS_NON_BMI2_SRC})
-add_executable(polaris-bmi2 ${POLARIS_COMMON_SRC} ${POLARIS_BMI2_SRC} src/eval/nnue.cpp)
+add_executable(polaris-bmi2 ${POLARIS_COMMON_SRC} ${POLARIS_BMI2_SRC})
 add_executable(polaris-modern ${POLARIS_COMMON_SRC} ${POLARIS_NON_BMI2_SRC})
 add_executable(polaris-popcnt ${POLARIS_COMMON_SRC} ${POLARIS_NON_BMI2_SRC})
 add_executable(polaris-compat ${POLARIS_COMMON_SRC} ${POLARIS_NON_BMI2_SRC})

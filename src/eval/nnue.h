@@ -33,7 +33,7 @@
 namespace polaris::eval::nnue
 {
 	constexpr usize InputSize = 768;
-	constexpr usize Layer1Size = 768;
+	constexpr usize Layer1Size = 384;
 
 	constexpr Score CReluMin = 0;
 	constexpr Score CReluMax = 255;
@@ -68,10 +68,9 @@ namespace polaris::eval::nnue
 		}
 	};
 
-	constexpr auto screlu(i16 x)
+	constexpr auto crelu(i16 x)
 	{
-		const auto clipped = std::clamp(static_cast<i32>(x), CReluMin, CReluMax);
-		return clipped * clipped;
+		return std::clamp(static_cast<i32>(x), CReluMin, CReluMax);
 	}
 
 	class NnueState
@@ -207,11 +206,11 @@ namespace polaris::eval::nnue
 
 			for (usize i = 0; i < Layer1Size; ++i)
 			{
-				sum += screlu(  us[i]) * weights[             i];
-				sum += screlu(them[i]) * weights[Layer1Size + i];
+				sum += crelu(  us[i]) * weights[             i];
+				sum += crelu(them[i]) * weights[Layer1Size + i];
 			}
 
-			return sum / Qa;
+			return sum;
 		}
 	};
 }
