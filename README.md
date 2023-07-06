@@ -16,11 +16,12 @@ a work-in-progress UCI chess and [chess960](https://en.wikipedia.org/wiki/Fische
 ## Strength
 | Version | [CCRL 40/15](https://www.computerchess.org.uk/ccrl/4040/) | [CCRL Blitz](https://www.computerchess.org.uk/ccrl/404/) | [CCRL 40/2 FRC](https://www.computerchess.org.uk/ccrl/404FRC/) | [MCERL](https://www.chessengeria.com/mcerl) |
 |:-------:|:---------------------------------------------------------:|:--------------------------------------------------------:|:--------------------------------------------------------------:|:-------------------------------------------:|
-|  1.7.0  |                           2929                            |                           2954                           |                              2839                              |                      -                      |
+|  1.8.x  |                      testing ongoing                      |                           3048                           |                              2982                              |                      -                      |
+|  1.7.0  |                           2927                            |                           2953                           |                              2839                              |                      -                      |
 |  1.6.x  |                           2806                            |                           2884                           |                              2745                              |                      -                      |
 |  1.5.0  |                           2678                            |                           2749                           |                              2508                              |                    2713                     |
-|  1.4.x  |                           2642                            |                            -                             |                              2455                              |                      -                      |
-|  1.3.0  |                           2450                            |                           2513                           |                              N/A                               |                      -                      |
+|  1.4.x  |                           2639                            |                            -                             |                              2455                              |                      -                      |
+|  1.3.0  |                           2450                            |                           2512                           |                              N/A                               |                      -                      |
 |  1.2.0  |               ~2300 (very few games played)               |                           2330                           |                              N/A                               |                      -                      |
 
 ## Features
