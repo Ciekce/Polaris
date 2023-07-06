@@ -11,7 +11,9 @@
 
 </div>
 
-a work-in-progress UCI chess and [chess960](https://en.wikipedia.org/wiki/Fischer_random_chess) engine
+a UCI chess and [chess960](https://en.wikipedia.org/wiki/Fischer_random_chess) engine
+
+active development on Polaris has ceased in favour of its NNUE successor [Stormphrax](https://github.com/Ciekce/Stormphrax)
 
 ## Strength
 | Version | [CCRL 40/15](https://www.computerchess.org.uk/ccrl/4040/) | [CCRL Blitz](https://www.computerchess.org.uk/ccrl/404/) | [CCRL 40/2 FRC](https://www.computerchess.org.uk/ccrl/404FRC/) | [MCERL](https://www.chessengeria.com/mcerl) |
